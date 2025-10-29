@@ -8,7 +8,7 @@ mu = 0.1
 
 s = Sistem(mu)
 
-theta = 6.0
+theta = 5.1
 
 #H_ini = H0(s,theta)
 #function H_test(u,t,integrator)

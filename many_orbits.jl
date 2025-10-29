@@ -4,7 +4,7 @@ using PlotlyJS
 using LinearAlgebra
 include("RCP3BP.jl")
 
-mu = 0.2
+mu = 0.1
 tspan=(0.0,100.0)
 s = Sistem(mu)
 
