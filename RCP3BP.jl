@@ -36,6 +36,22 @@ function orbit!(du,u,p,t)
     du[4] = -(mu * q2 / r1) - ((1-mu) * q2 / r2) - p1
 end
 
+function orbitBack!(du,u,p,t)
+    mu = p
+    q1,q2,p1,p2 = u
+
+    du[1] = -(p1 + q2)
+    du[2] = q1 - p2
+
+    r1sq = (q1 + mu - 1)^2 + q2^2
+    r2sq = (q1 + mu)^2 + q2^2
+    r1 = sqrt(r1sq)*r1sq
+    r2 = sqrt(r2sq)*r2sq
+
+    du[3] = (mu * (q1 + mu - 1) / r1) + ((1-mu)*(q1+mu) / r2) - p2
+    du[4] = (mu * q2 / r1) + ((1-mu) * q2 / r2) + p1
+end
+
 function hamiltonian(p,q,params)
     mu = params
     q1,q2 = q
@@ -98,14 +114,51 @@ function problem(s::Sistem,theta::Float64,tspan)
     return ODEProblem(orbit!,u0,tspan,s.mu)
 end
 
-function H0(s::Sistem,theta::Float64)
+function problemI(s::Sistem,theta::Float64,tspan)
     u0 = s.L4 + s.eps*(cos(theta)*s.Ivecs[1] + sin(theta)*s.Ivecs[2])
+    return ODEProblem(orbit!,u0,tspan,s.mu)
+end
+
+function problemE(s::Sistem,theta::Float64,tspan)
+    u0 = s.L4 + s.eps*(cos(theta)*s.Evecs[1] + sin(theta)*s.Evecs[2])
+    return ODEProblem(orbitBack!,u0,tspan,s.mu)
+end
+
+function problemI_L5(s::Sistem,theta::Float64,tspan)
+    s1 = [-1, 1, 1, -1]
+    s2 = [1, -1, -1, 1]
+    L5 = s.L4 .* s2
+
+    u0 = L5 + s.eps*(cos(theta)*(s.Evecs[1] .* s1) + sin(theta)*(s.Evecs[2] .* s2))
+    return ODEProblem(orbitBack!,u0,tspan,s.mu)
+end
+
+function problemE_L5(s::Sistem,theta::Float64,tspan)
+    s1 = [-1, 1, 1, -1]
+    s2 = [1, -1, -1, 1]
+    L5 = s.L4 .* s2
+
+    u0 = L5 + s.eps*(cos(theta)*(s.Ivecs[1] .* s1) + sin(theta)*(s.Ivecs[2] .* s2))
+    return ODEProblem(orbitBack!,u0,tspan,s.mu)
+end
+
+function H0(s::Sistem,theta::Float64; esEstable = false)
+    v = esEstable ? s.Evecs : s.Ivecs
+    u0 = s.L4 + s.eps*(cos(theta)*v[1] + sin(theta)*v[2])
     return hamiltonian((u0[3],u0[4]),(u0[1],u0[2]),s.mu)
 end
 
-function end_callback(s::Sistem,theta::Float64;error::Float64=1e-10)
-    H_ini = H0(s,theta)
-    test(u,t,integrator) = error < abs(H_ini - hamiltonian((u[3],u[4]),(u[1],u[2]),mu))
+function end_callback(s::Sistem,theta::Float64;error::Float64=1e-10, esEstable = false)
+    H_ini = H0(s,theta,esEstable=esEstable)
+    test(u,t,integrator) = error < abs(H_ini - hamiltonian((u[3],u[4]),(u[1],u[2]),s.mu))
+    affect!(integrator) = terminate!(integrator)
+    return DiscreteCallback(test,affect!)
+end
+
+function end_callback(prob::ODEProblem,param;error::Float64=1e-10)
+    u0 = prob.u0
+    H_ini = hamiltonian((u0[3],u0[4]),(u0[1],u0[2]),param)
+    test(u,t,integrator) = error < abs(H_ini - hamiltonian((u[3],u[4]),(u[1],u[2]),param))
     affect!(integrator) = terminate!(integrator)
     return DiscreteCallback(test,affect!)
 end

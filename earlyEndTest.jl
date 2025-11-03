@@ -4,11 +4,11 @@ using PlotlyJS
 using LinearAlgebra
 include("RCP3BP.jl")
 
-mu = 0.1
+mu = 0.0405
 
 s = Sistem(mu)
 
-theta = 5.1
+theta = 5.3
 
 #H_ini = H0(s,theta)
 #function H_test(u,t,integrator)
@@ -18,7 +18,7 @@ theta = 5.1
 #orbit_terminate = DiscreteCallback(H_test,affect!)
 orbit_terminate = end_callback(s,theta)
 
-tspan = (0.0,100.0)
+tspan = (0.0,2000.0)
 prob = problem(s,theta,tspan)
 sol = solve(prob,Feagin14(),
 	    dtmax=0.01,
