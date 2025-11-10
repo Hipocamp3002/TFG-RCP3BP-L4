@@ -1,20 +1,29 @@
 using DifferentialEquations
-#using Plots
+using DiffEqCallbacks
 using PlotlyJS
 using LinearAlgebra
 include("RCP3BP.jl")
 
-mu = 0.4
+mu = 0.04
 
 s = Sistem(mu)
 
-#theta = 5.1001550005 #Viatja a L5
-#theta = 5.178331 #torna a L4
-theta = 3.6810580587516766
+theta = 5.3
 
-tspan = (0.0,32)
+#H_ini = H0(s,theta)
+#function H_test(u,t,integrator)
+#    return 1e-10 < abs(H_ini - hamiltonian((u[3],u[4]),(u[1],u[2]),(mu)))
+#end
+#affect!(integrator) = terminate!(integrator)
+#orbit_terminate = DiscreteCallback(H_test,affect!)
+orbit_terminate = end_callback(s,theta)
+
+tspan = (0.0,500.0)
 prob = problem(s,theta,tspan)
-sol = solve(prob,Feagin14(),dtmax=0.01)
+sol = solve(prob,Feagin14(),
+	    dtmax=0.01,
+	    save_end=false,
+	    callback = orbit_terminate)
 
 
 Qplot = plot([
@@ -39,3 +48,4 @@ Hplot = plot(scatter(x=1:length(H),y=H,mode="lines"),Layout(title="H diff"))
 p = [Qplot Pplot;Hplot]
 relayout!(p,showlegend=false)
 p
+

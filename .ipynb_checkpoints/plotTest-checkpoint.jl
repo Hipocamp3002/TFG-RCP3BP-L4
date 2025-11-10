@@ -10,9 +10,9 @@ s = Sistem(mu)
 
 #theta = 5.1001550005 #Viatja a L5
 #theta = 5.178331 #torna a L4
-theta = 3.6810580587516766
+theta = 3.0
 
-tspan = (0.0,32)
+tspan = (0.0,102)
 prob = problem(s,theta,tspan)
 sol = solve(prob,Feagin14(),dtmax=0.01)
 
