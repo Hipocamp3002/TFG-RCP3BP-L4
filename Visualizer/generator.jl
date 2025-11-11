@@ -31,6 +31,7 @@ currSection = ""
 mu = 0.0
 eqCond = eq_dq1
 dirCond = gt_dq2
+params_cond = ()
 Ln = 4
 center = Vector{Float64}(undef,4)
 vecs = Array{Vector{Float64}}(undef,2)
@@ -41,7 +42,7 @@ data = SortedDict{Float64,Vector{intersection}}()
 
 #Seccions
 
-function newSection(name::String, def_eqCond, def_dirCond, Lagrange=4, isBackwards=false; override = false)
+function newSection(name::String, def_eqCond, def_dirCond; c_params=(), Lagrange=4, isBackwards=false ,override = false)
     directory = "./data/"*name
     if(isdir(directory))
 	if override
@@ -56,6 +57,7 @@ function newSection(name::String, def_eqCond, def_dirCond, Lagrange=4, isBackwar
     global currSection = name
     global eqCond = def_eqCond
     global dirCond = def_dirCond
+    global params_cond = c_params
 
     global Ln = Lagrange
     global backwards = isBackwards
@@ -65,6 +67,7 @@ function newSection(name::String, def_eqCond, def_dirCond, Lagrange=4, isBackwar
     save(directory*"/definition.jld2",
 	 "eq", eqCond,
 	 "dir", dirCond,
+	 "pc", params_cond,
 	 "Ln", Ln,
 	 "backwards",backwards)
 end
@@ -79,6 +82,7 @@ function loadSection(name::String)
     global currSection = name
     global eqCond = definitions["eq"]
     global dirCond = definitions["dir"]
+    global params_cond = definitions["pc"]
     global Ln = definitions["Ln"]
     global backwards = definitions["backwards"]
 
@@ -124,7 +128,17 @@ end
 function newOrbit(theta::Float64,tspan, min_dist=0.1)
     u0 = center + eps*(cos(theta)*vecs[1] + sin(theta)*vecs[2])
     u0sa = SVector{4,Float64}(u0)
-    cb = seccio_callback(eqCond,dirCond)
+
+    cond(u,t,integrator) = eqCond(u,params_cond)
+    function affect!(integrator)
+	u = integrator.u
+	if(dirCond(u,params_cond))
+	    res = savevalues!(integrator, true)
+	end
+    end
+    cb = ContinuousCallback(cond,affect!,
+			save_positions = (false,false))
+
     
     global dataSaved = false
 
@@ -160,7 +174,16 @@ function newOrbit(theta::Float64,tspan, min_dist=0.1)
 end
 
 function newOrbitRange(angles::Array{Float64},tspan, min_dist=0.1)
-    cb = seccio_callback(eqCond,dirCond)
+    cond(u,t,integrator) = eqCond(u,params_cond)
+    function affect!(integrator)
+	u = integrator.u
+	if(dirCond(u,params_cond))
+	    res = savevalues!(integrator, true)
+	end
+    end
+    cb = ContinuousCallback(cond,affect!,
+			save_positions = (false,false))
+
     global dataSaved = false
 
     for theta in angles

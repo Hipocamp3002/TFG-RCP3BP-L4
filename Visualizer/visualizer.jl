@@ -55,6 +55,7 @@ function redraw()
     empty!(ax)
     if section1 != "none"
 	draw_points(section1,"blue")
+	#draw_lines(section1,"blue")
     end
 
     if section2 != "none"
@@ -73,15 +74,19 @@ function draw_points(path,color)
 	    x = 0
 	    if xaxis <= 4
 		x = pos[xaxis]
-	    else
-		#TODO: Modulos
+	    elseif xaxis == 5
+		x = pos[1]^2 + pos[2]^2
+	    elseif xaxis == 6
+		x = pos[3]^2 + pos[4]^2
 	    end
 
 	    y = 0
 	    if yaxis <= 4
 		y = pos[yaxis]
-	    else
-		#TODO: Modulos
+	    elseif yaxis == 5
+		y = pos[1]^2 + pos[2]^2
+	    elseif yaxis == 6
+		y = pos[3]^2 + pos[4]^2
 	    end
 	    push!(xpos,x)
 	    push!(ypos,y)
