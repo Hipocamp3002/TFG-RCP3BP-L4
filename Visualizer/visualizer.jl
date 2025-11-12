@@ -2,6 +2,7 @@ include("definitions.jl")
 using DataStructures
 using GLMakie
 using JLD2
+using CSV
 
 #Plot with selectors
 #   - mu value
@@ -20,18 +21,21 @@ yaxis=2
 #buscar en data totes les combinacions
 sections_list = ["none"]
 sections_path = ["none"]
-for (path, dirs, files) in walkdir("data")
-    for file in files
-	mu_string = replace(file,".jld2"=>"")
-	mu = tryparse(Float64,mu_string)
-	if(mu !== nothing)
-	    push!(sections_path,path*"/"*file)
-	    path_list = split(path,"/")
-	    push!(sections_list, path_list[2]*" "*mu_string)
+for folder in readdir("data")
+    for mu in readdir("data/"*folder)
+	path = "data/"*folder*"/"*mu
+	if isdir(path*"/E")
+	    push!(sections_list, folder*" "*mu*" Estable")
+	    push!(sections_path,path*"/E")
+	end
+	if isdir(path*"/I")
+	    push!(sections_list, folder*" "*mu*" Inestable")
+	    push!(sections_path,path*"/I")
 	end
     end
 end
-@show sections_list
+
+#TODO: Read data correcly to show
 
 fig = Figure()
 

@@ -62,7 +62,7 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
     end
 
     #check if type orbit exists
-    if orbit_type == Instable
+    if type == Instable
 	type_dir = mu_dir*"/I"
     else
 	type_dir = mu_dir*"/E"
@@ -78,7 +78,8 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
 
     #calculate
     data = []
-    push!(data,new_line(num_orbits))
+    #push!(data,new_line(num_orbits))
+    push!(data,[])
 
     range = collect(LinRange(0.0,2pi,num_orbits))
 
@@ -119,17 +120,23 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
 	sol = integrator.sol
 	if length(sol.u) > length(data)
 	    for _ in length(sol) - length(data)
-		push!(data,new_line(num_orbits))
+		#push!(data,new_line(num_orbits))
+		push!(data,[])
 	    end
 	end
 
 	i_inter = 1
 	for (u,t) in zip(sol.u,sol.t)
-	    data[i_inter][i] = Intersection(u,t,theta)
+	    #data[i_inter][i] = Intersection(u,t,theta)
+	    push!(data[i_inter], Intersection(u,t,theta))
 	    i_inter += 1
 	end
 	
     end
     
     #save data
+    for (i,row) in enumerate(data)
+	path = type_dir*"/"*string(i)*".csv"
+	CSV.write(path,row)
+    end
 end
