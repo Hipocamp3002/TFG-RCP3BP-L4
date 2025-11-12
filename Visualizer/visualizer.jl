@@ -68,36 +68,22 @@ function redraw()
 end
 
 function draw_points(path,color)
-    data = load_object(path)
-
-    xpos = []
-    ypos = []
-    for (k,V) in data
-	for v in V
-	    pos = v.u
-	    x = 0
+    for sec_file in readdir(path)
+	xpos = []
+	ypos = []
+	data = CSV.File(path*"/"*sec_file)
+	for (uStr,t,theta) in data
+	    u = parse.(Float64, split(chop(uStr,head=1,tail=1),','))
 	    if xaxis <= 4
-		x = pos[xaxis]
-	    elseif xaxis == 5
-		x = pos[1]^2 + pos[2]^2
-	    elseif xaxis == 6
-		x = pos[3]^2 + pos[4]^2
+		push!(xpos,u[xaxis])
 	    end
-
-	    y = 0
 	    if yaxis <= 4
-		y = pos[yaxis]
-	    elseif yaxis == 5
-		y = pos[1]^2 + pos[2]^2
-	    elseif yaxis == 6
-		y = pos[3]^2 + pos[4]^2
+		push!(ypos,u[yaxis])
 	    end
-	    push!(xpos,x)
-	    push!(ypos,y)
 	end
+	scatter!(ax,Point2f.(xpos,ypos),color=color,
+	  inspector_label = (self, i ,pos) -> sec_file*"\nθ="*string(data[i].theta))
     end
-
-    scatter!(ax,Point2f.(xpos,ypos),color=color)
 end
 
 
@@ -189,4 +175,5 @@ on(yaxis_menu.selection) do n
     redraw()
 end
 
+DataInspector()
 fig
