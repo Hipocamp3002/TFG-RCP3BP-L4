@@ -14,7 +14,7 @@ function list()
     end
 end
 
-@enum orbit_type Estable Instable
+@enum orbit_type E I
 
 struct calc_parameters
     tspan
@@ -33,7 +33,7 @@ function new_line(num_orbits)
 end
 
 function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64, 
-		       type::orbit_type = Instable, calc_p = calc_parameters((0.0,100),-1);
+		       type::orbit_type = I, calc_p = calc_parameters((0.0,100),-1);
 		       override = false)
     #get key if integer
     skey::String = ""
@@ -62,7 +62,7 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
     end
 
     #check if type orbit exists
-    if type == Instable
+    if type == I
 	type_dir = mu_dir*"/I"
     else
 	type_dir = mu_dir*"/E"
@@ -84,7 +84,7 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
     range = collect(LinRange(0.0,2pi,num_orbits))
 
     cond(u,t,integrator) = S.eq_cond(u,mu)
-    dir_cond = type == Instable ? S.dir_condI : S.dir_condE
+    dir_cond = type == I ? S.dir_condI : S.dir_condE
     function affect!(integrator)
 	u = integrator.u
 	if dir_cond(u,mu)
@@ -93,12 +93,12 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
     end
     cb = ContinuousCallback(cond,affect!,
 			save_positions = (false,false))
-    vecs = type == Instable ? sis.Ivecs : sis.Evecs
+    vecs = type == I ? sis.Ivecs : sis.Evecs
 
     for (i,theta) in enumerate(range)
 	u0 = sis.center + sis.eps*(vecs[1]*cos(theta) + vecs[2]*sin(theta))
 	u0sa = SVector{4,Float64}(u0)
-	prob = ODEProblem(type == Instable ? orbit : orbitBack,u0sa,calc_p.tspan,mu)
+	prob = ODEProblem(type == I ? orbit : orbitBack,u0sa,calc_p.tspan,mu)
 
 	integrator = init(prob,Feagin14(),
 			dtmax = 0.01, 
@@ -115,11 +115,14 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
 		too_much_error = true
 		break#stop calculating
 	    end
+	    if calc_p.max_intersections != -1
+		if calc_p.max_intersections <= length(integrator.sol) break end
+	    end
 	end
 
 	sol = integrator.sol
 	if length(sol.u) > length(data)
-	    for _ in length(sol) - length(data)
+	    for test in length(data):length(sol)
 		#push!(data,new_line(num_orbits))
 		push!(data,[])
 	    end

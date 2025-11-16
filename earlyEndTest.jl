@@ -4,11 +4,11 @@ using PlotlyJS
 using LinearAlgebra
 include("RCP3BP.jl")
 
-mu = 0.0405
+mu = 0.3
 
 s = Sistem(mu)
 
-theta = 5.3
+theta = 4.558142447292605
 
 #H_ini = H0(s,theta)
 #function H_test(u,t,integrator)
