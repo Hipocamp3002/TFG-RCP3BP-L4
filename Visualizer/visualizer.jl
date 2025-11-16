@@ -1,4 +1,3 @@
-include("definitions.jl")
 using DataStructures
 using GLMakie
 using JLD2
