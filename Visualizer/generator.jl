@@ -84,15 +84,15 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
     range = collect(LinRange(0.0,2pi,num_orbits))
 
     cond(u,t,integrator) = S.eq_cond(u,mu)
-    dir_cond = type == I ? S.dir_condI : S.dir_condE
     function affect!(integrator)
 	u = integrator.u
-	if dir_cond(u,mu)
+	if S.dir_cond(u,mu)
 	    res = savevalues!(integrator, true)
 	end
+	u_modified!(integrator,false)
     end
     cb = ContinuousCallback(cond,affect!,
-			save_positions = (false,false))
+			    save_positions = (false,false))
     vecs = type == I ? sis.Ivecs : sis.Evecs
 
     for (i,theta) in enumerate(range)
@@ -100,19 +100,17 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
 	u0sa = SVector{4,Float64}(u0)
 	prob = ODEProblem(type == I ? orbit : orbitBack,u0sa,calc_p.tspan,mu)
 
-	integrator = init(prob,Feagin14(),
-			dtmax = 0.01, 
+	integrator = init(prob,Vern9(),
+			abstol = 1e-14, reltol = 1e-14, 
 			callback = cb,
 			save_everystep = false,
 			save_start = false,
 			save_end = false)
 	
-	too_much_error = false
 	H_ini = hamiltonian(u0,mu)
 	for (u,t) in tuples(integrator)
 	    H = hamiltonian(u,mu)
 	    if 1e-10 < abs(H_ini-H)
-		too_much_error = true
 		break#stop calculating
 	    end
 	    if calc_p.max_intersections != -1
@@ -121,6 +119,16 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
 	end
 
 	sol = integrator.sol
+	
+	#sol = solve(prob,Feagin14(),
+	#	dtmax=0.01,
+		#abstol = 1e-14,reltol = 1e-14,
+	#	callback = cb,
+	#	save_everystep = false,
+	#	save_start = false,
+	#	save_end = false,
+	#	unstable_check = unstable_f(hamiltonian(u0,mu),mu,1e-10))
+#	
 	if length(sol.u) > length(data)
 	    for test in length(data):length(sol)
 		#push!(data,new_line(num_orbits))
@@ -142,4 +150,8 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
 	path = type_dir*"/"*string(i)*".csv"
 	CSV.write(path,row)
     end
+end
+
+function unstable_f(H_ini,mu,err)
+    return (dt,u,p,t) -> err < abs(H_ini - hamiltonian(u,mu))
 end

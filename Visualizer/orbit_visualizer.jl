@@ -10,17 +10,19 @@ fig[3,1] = inputGrid_axis = GridLayout(tellwidth=false)
 
 angle_input = Textbox(fig,placeholder = "Enter angle",validator = Float64)
 mu_input = Textbox(fig,placeholder = "Enter mu",validator = Float64)
+time_input = Textbox(fig,placeholder = "Enter time",validator = Float64)
 calc_button = Button(fig,label="calculate")
 
 
 xaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2"],1:4), default = "q1")
 yaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2"],1:4), default = "q2")
 
-input_orbit = inputGrid_orbit[1,1:3] = [angle_input,mu_input,calc_button]
+input_orbit = inputGrid_orbit[1,1:4] = [angle_input,mu_input,calc_button,time_input]
 input_axis = inputGrid_axis[1,1:2] = [xaxis_menu,yaxis_menu]
 
 mu = 0.0
 angle = 0.0
+time = 100.0
 x_axis = 1
 y_axis = 2
 
@@ -63,6 +65,10 @@ on(angle_input.stored_string) do s
     notify(path)
 end
 
+on(time_input.stored_string) do s
+    global time = parse(Float64,s)
+end
+
 on(xaxis_menu.selection) do v
     global x_axis = v
     notify(bodies)
@@ -98,8 +104,8 @@ function calc_orbit()
     u0 = s.center + s.eps*(cos(angle)*s.Ivecs[1] + sin(angle)*s.Ivecs[2])
 
     u0sa = SVector{4,Float64}(u0)
-    prob = ODEProblem(orbit,u0sa,(0.0,100.0),(mu))
-    sol = solve(prob,Feagin12(),
+    prob = ODEProblem(orbit,u0sa,(0.0,time),(mu))
+    sol = solve(prob,Vern9(),
 		abstol = 1e-14,reltol = 1e-14,
 		unstable_check = unstable_f(hamiltonian(u0,mu),1e-10))
     append!(path[],[collect(x) for x in sol.u])

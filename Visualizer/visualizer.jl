@@ -19,6 +19,8 @@ section2_path = "none"
 xaxis=1
 yaxis=2
 
+last_hover=0.0
+
 #buscar en data totes les combinacions
 sections = Dict{String,Tuple{String,Array{String}}}("none"=> ("none",[]))
 for folder in readdir("data")
@@ -63,11 +65,10 @@ xaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ"],1:5), default = "q1
 yaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ"],1:5), default = "q2")
 
 
-
 input_sec = inputGrid_sec[1,1:3] = [section1_menu, section2_menu, mu_menu]
 input_axis = inputGrid_axis[1,1:2] = [xaxis_menu,yaxis_menu]
 
-scatter!(ax,1:10,1:10)
+Splt = scatter!(ax,1:10,1:10)
 empty!(ax)
 
 function updateMuMenu()
@@ -100,8 +101,17 @@ function redraw()
     end
 end
 
+function inspector(sec_file,data)
+    function inspect(self,i,pos)
+	global last_hover = data[i].theta
+	sec_file*"\nθ="*string(data[i].theta)
+    end
+    return inspect
+end
+
 function draw_points(path,color)
     for sec_file in readdir(path)
+	section = parse(Int64,split(sec_file,".")[1])
 	xpos = []
 	ypos = []
 	data = CSV.File(path*"/"*sec_file)
@@ -119,7 +129,7 @@ function draw_points(path,color)
 	    end
 	end
 	scatter!(ax,Point2f.(xpos,ypos),color=color,
-	  inspector_label = (self, i ,pos) -> sec_file*"\nθ="*string(data[i].theta))
+	  inspector_label = inspector(sec_file,data))
     end
 end
 
@@ -160,6 +170,15 @@ end
 on(yaxis_menu.selection) do n
     global yaxis = n
     redraw()
+end
+
+on(events(Splt).mousebutton, priority = -1) do event
+    if event.button == Mouse.left && event.action == Mouse.press
+	plt,i = pick(Splt)
+	if plt isa Scatter
+	    clipboard(string(last_hover))
+	end
+    end
 end
 
 DataInspector()

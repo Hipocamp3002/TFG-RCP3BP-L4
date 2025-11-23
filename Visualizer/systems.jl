@@ -61,6 +61,7 @@ function sistema_L4(mu::Float64; ini_error::Float64=1e-10, num_cicles::Int=1)
     Ivecs = Ivecs./norm.(Ivecs)
     Evecs = Evecs./norm.(Evecs)
 
+
     #calc error
     tf = num_cicles*2π/b
     e_at = exp(a*tf)
