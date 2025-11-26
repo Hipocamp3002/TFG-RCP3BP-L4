@@ -1,6 +1,7 @@
 using JLD2
 using CSV
 
+systems = include("systems.jl")
 sections = include("sections.jl")
 
 sections_keys = []
@@ -32,7 +33,7 @@ function new_line(num_orbits)
     return Array{Union{Nothing,Intersection}}(nothing,num_orbits)
 end
 
-function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64, 
+function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits::Int, mu::Float64, 
 		       type::orbit_type = I, calc_p = calc_parameters((0.0,100),-1);
 		       override = false)
     #get key if integer
@@ -44,36 +45,37 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
     end
     S = sections[skey]
 
-    #check if section exists
-    sec_dir = "data/"*skey
+    #mu_exists
+    mu_dir = "data/"*string(mu)
+    if !isdir(mu_dir)
+	mkdir(mu_dir)
+    end
+    
+    #system_exists
+    sys_dir = mu_dir*"/"*system_key
+    if !isdir(sys_dir)
+	mkdir(sys_dir)
+	sis = systems[system_key](mu)
+	save_object(sys_dir*"/params.jld2",sis)
+    else
+	sis = load_object(sys_dir*"/params.jld2")
+    end
+
+    #section_exists
+    sec_dir = sys_dir*"/"*skey
     if !isdir(sec_dir)
 	mkdir(sec_dir)
     end
 
-    #mu folder exists
-    mu_dir = sec_dir*"/"*string(mu)
-    if !isdir(mu_dir)
-	mkdir(mu_dir)
-	#calc sistem parameters
-	sis = S.constructor(mu)
-	save_object(mu_dir*"/params.jld2", sis)
+    #type_exists
+    type_dir = sec_dir*"/"*(type == I ? "I" : "E")
+    if !isdir(type_dir)
+	mkdir(type_dir)
+    elseif override
+	rm(type_dir,recursive=true)
+	mkdir(type_dir)
     else
-	sis = load_object(mu_dir*"/params.jld2")
-    end
-
-    #check if type orbit exists
-    if type == I
-	type_dir = mu_dir*"/I"
-    else
-	type_dir = mu_dir*"/E"
-    end
-    if !isdir(type_dir) mkdir(type_dir) else
-	if override
-	    rm(type_dir, recursive=true)
-	    mkdir(type_dir)
-	else
-	    error("This sis is already calculated")
-	end
+	error("Orbit already exists, set override to true to override")
     end
 
     #calculate
@@ -83,7 +85,7 @@ function uniformOrbits(section::Union{Int,String}, num_orbits::Int, mu::Float64,
 
     range = collect(LinRange(0.0,2pi,num_orbits))
 
-    cond(u,t,integrator) = S.eq_cond(u,mu)
+    cond(u,t,integrator) = S.eq_cond(u,mu) - S.cut
     function affect!(integrator)
 	u = integrator.u
 	if S.dir_cond(u,mu)

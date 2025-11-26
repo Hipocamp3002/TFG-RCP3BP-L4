@@ -106,3 +106,6 @@ function hamiltonian(u,mu)
 
     return (p1^2 + p2^2)/2.0 - q1*p2 + q2*p1 - (1-mu)/sqrt((q1+mu)^2 + q2^2) - mu/sqrt((q1-1+mu)^2 + q2^2)
 end
+
+return Dict([("L4",sistema_L4),
+    ("L5",sistema_L5)])

@@ -1,25 +1,20 @@
-include("systems.jl")
-
 struct section
-    constructor
+    cut
     eq_cond
     dir_cond
 end
 
-function eq_Q(u,mu,p)
-    cut = p
+function eq_Q(u,mu)
     U = u[1:2] - [0.5-mu,sqrt(3)/2]
-    U[1]*U[1] + U[2]*U[2] - cut
+    U[1]*U[1] + U[2]*U[2]
 end
-function eq_P(u,mu,p)
-    cut = p
+function eq_P(u,mu)
     U = u[3:4] - [-sqrt(3)/2,0.5-mu]
-    U[1]*U[1] + U[2]*U[2] - cut
+    U[1]*U[1] + U[2]*U[2]
 end
-function eq_QP(u,mu,p)
-    cut = p
+function eq_QP(u,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
-    U[1]*U[1] + U[2]*U[2] + U[3]*U[3] + U[4]*U[4] - cut
+    U[1]*U[1] + U[2]*U[2] + U[3]*U[3] + U[4]*U[4] 
 end
 
 
@@ -62,10 +57,9 @@ function gt_dQP(u,mu)
 end
 
 
-function eq_Q2P1(u,mu,p)
-    cut = p
+function eq_Q2P1(u,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
-    U[2]*U[2] + U[3]*U[3] - cut
+    U[2]*U[2] + U[3]*U[3]
 end
 function gt_dQ2P1(u,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
@@ -84,10 +78,9 @@ function gt_dQ2P1(u,mu)
     return U[2]*dU[2] + U[3]*dU[3] > 0
 end
 
-function eq_Q1P2(u,mu,p)
-    cut = p
+function eq_Q1P2(u,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
-    U[1]*U[1] + U[4]*U[4] - cut
+    U[1]*U[1] + U[4]*U[4]
 end
 function gt_dQ1P2(u,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
@@ -107,45 +100,45 @@ function gt_dQ1P2(u,mu)
 end
 
 Q_dQL4 = section(
-    sistema_L4,
-    (u,mu) -> eq_Q(u,mu,0.5),
+    0.5,
+    eq_Q,
     gt_dQ,
 )
 
 Q_dQL4_e1 = section(
-    sistema_L4,
-    (u,mu) -> eq_Q(u,mu,0.1),
+    0.1,
+    eq_Q,
     gt_dQ,
 )
 
 
 P_dPL4 = section(
-    sistema_L4,
-    (u,mu) -> eq_P(u,mu,0.5),
+    0.5,
+    eq_P,
     gt_dP,
 )
 
 QP_dQPL4 = section(
-    sistema_L4,
-    (u,mu) -> eq_QP(u,mu,0.5),
+    0.5,
+    eq_QP,
     gt_dQP,
 )
 
 QP_dQPL4_1e1 = section(
-    sistema_L4,
-    (u,mu) -> eq_QP(u,mu,0.1),
+    0.1,
+    eq_QP,
     gt_dQP,
 )
 
 Q2P1_L4_e1 = section(
-    sistema_L4,
-    (u,mu) -> eq_Q2P1(u,mu,0.1),
+    0.1,
+    eq_Q2P1,
     gt_dQ2P1,
 )
 
 Q1P2_L4_e1 = section(
-    sistema_L4,
-    (u,mu) -> eq_Q1P2(u,mu,0.1),
+    0.1,
+    eq_Q1P2,
     gt_dQ1P2,
 )
 
