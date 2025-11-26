@@ -21,6 +21,8 @@ yaxis=2
 
 last_hover=0.0
 
+curr_mu = 0.0
+
 #buscar en data totes les combinacions
 sections = Dict{String,Tuple{String,Array{String}}}("none"=> ("none",[]))
 for folder in readdir("data")
@@ -61,8 +63,10 @@ section1_menu = Menu(fig,options=sections_options, default="none")
 section2_menu = Menu(fig,options=sections_options, default="none")
 mu_menu = Menu(fig,options=["none"])
 
-xaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ"],1:5), default = "q1")
-yaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ"],1:5), default = "q2")
+xaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ","Q_L4_angle","P_L4_angle"],1:7)
+		  , default = "q1")
+yaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ","Q_L4_angle","P_L4_angle"],1:7)
+		  , default = "q2")
 
 
 input_sec = inputGrid_sec[1,1:3] = [section1_menu, section2_menu, mu_menu]
@@ -119,13 +123,25 @@ function draw_points(path,color)
 	    u = parse.(Float64, split(chop(uStr,head=1,tail=1),','))
 	    if xaxis <= 4
 		push!(xpos,u[xaxis])
-	    else xaxis == 5
+	    elseif xaxis == 5
 		push!(xpos,theta)
+	    elseif xaxis == 6
+		angle = atan(u[1]-0.5+curr_mu, u[2]-sqrt(3)/2)
+		push!(xpos,angle)
+	    elseif xaxis == 7
+		angle = atan(u[3]+sqrt(3)/2, u[4]-0.5+curr_mu)
+		push!(xpos,angle)
 	    end
 	    if yaxis <= 4
 		push!(ypos,u[yaxis])
-	    else yaxis == 5
+	    elseif yaxis == 5
 		push!(ypos,theta)
+	    elseif yaxis == 6
+		angle = atan(u[1]-0.5+curr_mu, u[2]-sqrt(3)/2)
+		push!(ypos,angle)
+	    elseif yaxis == 7
+		angle = atan(u[3]+sqrt(3)/2, u[4]-0.5+curr_mu)
+		push!(ypos,angle)
 	    end
 	end
 	scatter!(ax,Point2f.(xpos,ypos),color=color,
@@ -144,7 +160,8 @@ on(section2_menu.selection) do s
     updateMuMenu()
 end
 on(mu_menu.selection) do s
-    if s == nothing return end
+    if s == nothing return
+    else global curr_mu = parse(Float64,s)end
     if section1 == "none"
 	global section1_path = "none"
     else
