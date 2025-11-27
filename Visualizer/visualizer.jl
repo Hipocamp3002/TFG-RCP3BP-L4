@@ -5,13 +5,16 @@ using CSV
 
 #Plot with selectors
 #   - mu value
-#   - 2 sections
+#   - 2 systems
+#   - 1 section
 #   - Axis selector
 
 
 
-section1 = "none"
-section2 = "none"
+system1 = "none"
+system2 = "none"
+
+section = "none"
 
 section1_path = "none"
 section2_path = "none"
@@ -23,33 +26,6 @@ last_hover=0.0
 
 curr_mu = 0.0
 
-#buscar en data totes les combinacions
-sections = Dict{String,Tuple{String,Array{String}}}("none"=> ("none",[]))
-for folder in readdir("data")
-    for mu in readdir("data/"*folder)
-	path = "data/"*folder*"/"*mu
-	if isdir(path*"/E")
-	    mu_path = path*"/E"
-	    entry = folder*" Estable"
-	    if haskey(sections, entry)
-		push!(sections[entry][2], mu)
-	    else
-		push!(sections, entry => ("data/"*folder*"/{mu}/E",[mu]))
-	    end
-
-	end
-	if isdir(path*"/I")
-	    mu_path = path*"/I"
-	    entry = folder*" Inestable"
-	    if haskey(sections, entry)
-		push!(sections[entry][2], mu)
-	    else
-		push!(sections, entry => ("data/"*folder*"/{mu}/I",[mu]))
-	    end
-	end
-    end
-end
-
 
 fig = Figure()
 
@@ -57,11 +33,15 @@ ax = Axis(fig[2,1])
 fig[1,1] = inputGrid_sec = GridLayout(tellwidth=false)
 fig[3,1] = inputGrid_axis = GridLayout(tellwidth=false)
 
-sections_options = collect(keys(sections))
-sort!(sections_options)
-section1_menu = Menu(fig,options=sections_options, default="none")
-section2_menu = Menu(fig,options=sections_options, default="none")
-mu_menu = Menu(fig,options=["none"])
+mu_selection = []
+for mu_dir in readdir("data")
+    push!(mu_selection,mu_dir)
+end
+
+mu_menu = Menu(fig,options=mu_selection,default=nothing)
+sys1_menu = Menu(fig,options=["none"], default="none")
+sys2_menu = Menu(fig,options=["none"], default="none")
+sec_menu = Menu(fig,options=["none"], default="none")
 
 xaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ","Q_L4_angle","P_L4_angle"],1:7)
 		  , default = "q1")
@@ -69,38 +49,79 @@ yaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ","Q_L4_angle","P_L4_a
 		  , default = "q2")
 
 
-input_sec = inputGrid_sec[1,1:3] = [section1_menu, section2_menu, mu_menu]
+input_sec = inputGrid_sec[1,1:4] = [mu_menu,sys1_menu, sys2_menu, sec_menu]
 input_axis = inputGrid_axis[1,1:2] = [xaxis_menu,yaxis_menu]
 
 Splt = scatter!(ax,1:10,1:10)
 empty!(ax)
 
-function updateMuMenu()
-    if section1 == "none" && section2 == "none"
-	mu_menu.options = ["none"]
-    elseif section1 == "none"
-	mus = sections[section2][2]
-	mu_menu.options = mus
-    elseif section2 == "none"
-	mus = sections[section1][2]
-	mu_menu.options = mus
+#TODO: fix doble execution
+function updateSectionsMenu()
+    index = sec_menu.i_selected.val
+    if index != 0
+	id = sec_menu.options.val[index]
     else
-	mu1 = sections[section1][2]
-	mu2 = sections[section2][2]
+	id = "none"
+    end
+
+    if system1 == "none" && system2 == "none"
+	sec_menu.options = ["none"]
+    elseif system1 == "none"
+	sec2_opts = ["none"]
+	for sec in readdir(system2)
+	    sec_dir = system2*"/"*sec*"/I"
+	    if isdir(sec_dir)
+		push!(sec2_opts,sec)
+	    end
+	end
+	sec_menu.options = sec2_opts
+    elseif system2 == "none"
+	sec1_opts = ["none"]
+	for sec in readdir(system1)
+	    sec_dir = system1*"/"*sec*"/E"
+	    if isdir(sec_dir)
+		push!(sec1_opts,sec)
+	    end
+	end
+	sec_menu.options = sec1_opts
+    else
+	sec1_opts = ["none"]
+	for sec in readdir(system1)
+	    sec_dir = system1*"/"*sec*"/E"
+	    if isdir(sec_dir)
+		push!(sec1_opts,sec)
+	    end
+	end
+	sec_menu.options = sec1_opts
+
+	sec2_opts = ["none"]
+	for sec in readdir(system2)
+	    sec_dir = system2*"/"*sec*"/I"
+	    if isdir(sec_dir)
+		push!(sec2_opts,sec)
+	    end
+	end
 	
-	mus =  intersect(mu1,mu2)
-	mu_menu.options = mus
+	sec_menu.options = intersect(sec1_opts,sec2_opts)
+    end
+
+    for (n,i) in enumerate(sec_menu.options.val)
+	if id == i
+	    sec_menu.i_selected = n
+	    notify(sec_menu.selection)
+	    break
+	end
     end
 end
 
 #drawing
 function redraw()
     empty!(ax)
-    if section1 != "none"
+    if section1_path != "none"
 	draw_points(section1_path,"blue")
     end
 
-    if section2 != "none"
+    if section2_path != "none"
 	draw_points(section2_path,"red")
     end
 end
@@ -151,34 +172,78 @@ end
 
 
 #events
-on(section1_menu.selection) do s
-    global section1 = s
-    updateMuMenu()
-end
-on(section2_menu.selection) do s
-    global section2 = s
-    updateMuMenu()
-end
 on(mu_menu.selection) do s
     if s == nothing return
     else global curr_mu = parse(Float64,s)end
-    if section1 == "none"
+    mu_dir = "data/"*s
+    systems_opt = [("none","none")]
+    for sys in readdir(mu_dir)
+	push!(systems_opt, (sys, mu_dir*"/"*sys))
+    end
+    
+    #get current id of selection
+    index = sys1_menu.i_selected.val
+    if index != 0
+	id1,_ = sys1_menu.options.val[index]
+    else
+	id1 = "none"
+    end
+    index = sys2_menu.i_selected.val
+    if index != 0
+	id2,_ = sys2_menu.options.val[index]
+    else
+	id2 = "none"
+    end
+
+	
+    sys1_menu.options = systems_opt
+    for (n,(i,d)) in enumerate(systems_opt)
+	if id1 == i
+	    sys1_menu.i_selected = n
+	    break
+	end
+    end
+
+    sys2_menu.options = systems_opt
+    for (n,(i,d)) in enumerate(systems_opt)
+	if id2 == i
+	    sys2_menu.i_selected = n
+	    break
+	end
+    end
+end
+
+on(sys1_menu.selection) do s
+    if s == nothing 
+	return
+    else
+	global system1 = s
+    end
+    updateSectionsMenu()
+end
+on(sys2_menu.selection) do s
+    if s == nothing 
+	return
+    else
+	global system2 = s
+    end
+    updateSectionsMenu()
+end
+
+on(sec_menu.selection) do s
+    if s==nothing || s == "none" return end
+    if system1 == "none"
 	global section1_path = "none"
     else
-	path = sections[section1][1]
-	first, second = split(path,"{mu}")
-	section1_path = first*s*second
+	global section1_path = system1*"/"*s*"/E"
     end
-    if section2 == "none"
+    if system2 == "none" 
 	global section2_path = "none"
     else
-	path = sections[section2][1]
-	first, second = split(path,"{mu}")
-	global section2_path = first*s*second
+	global section2_path = system2*"/"*s*"/I"
     end
     redraw()
 end
-
 
 on(xaxis_menu.selection) do n
     global xaxis = n
