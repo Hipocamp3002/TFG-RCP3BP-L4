@@ -45,9 +45,10 @@ sys1_menu = Menu(fig,options=["none"], default="none")
 sys2_menu = Menu(fig,options=["none"], default="none")
 sec_menu = Menu(fig,options=["none"], default="none")
 
-xaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ","Q_L4_angle","P_L4_angle"],1:7)
+axis_opt = ["q1","q2","p1","p2", "Q_L4_angle","P_L4_angle","Q_L4_mod","P_L4_mod"]
+xaxis_menu = Menu(fig,options=zip(axis_opt,1:8)
 		  , default = "q1")
-yaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ","Q_L4_angle","P_L4_angle"],1:7)
+yaxis_menu = Menu(fig,options=zip(axis_opt,1:8)
 		  , default = "q2")
 sec1_check = Toggle(fig,active = false)
 sec1_input = Textbox(fig,placeholder="E",validator = Int64)
@@ -58,8 +59,32 @@ input_sec = inputGrid_sec[1,1:4] = [mu_menu,sys1_menu, sys2_menu, sec_menu]
 input_axis = inputGrid_axis[1,1:6] = [xaxis_menu,yaxis_menu,
     sec1_check,sec1_input,sec2_check,sec2_input]
 
-Splt = scatter!(ax,1:10,1:10)
-empty!(ax)
+
+pointsE = Observable(Vector{Float64}[])
+anglesE = Float64[]
+pointsE_plt = lift(pointsE) do P
+    points::Vector{Point2f} = [Point2f(project(u,xaxis),project(u,yaxis)) for u in P]
+    return points
+end
+anglesI = Float64[]
+pointsI = Observable(Vector{Float64}[])
+pointsI_plt = lift(pointsI) do P
+    points::Vector{Point2f} = [Point2f(project(u,xaxis),project(u,yaxis)) for u in P]
+    return points
+end
+
+scatter!(ax,pointsE_plt,color="blue",markersize = 5,
+	 inspector_label = (self,i,pos) -> begin
+	    global last_hover = anglesE[i]
+	    "θ = "*string(anglesE[i])
+	 end)
+scatter!(ax,pointsI_plt,color="red",markersize = 5,
+	 inspector_label = (self,i,pos) -> begin
+	    global last_hover = anglesI[i]
+	    "θ = "*string(anglesI[i])
+	 end)
+
+
 
 #TODO: fix doble execution
 function updateSectionsMenu()
@@ -122,57 +147,63 @@ end
 
 #drawing
 function redraw()
-    empty!(ax)
     if section1_path != "none"
 	global cur_section = sec1_check.active[] ? sec1 : 0
-	draw_points(section1_path,"blue")
+	update_points!(pointsE,anglesE,section1_path)
+	notify(pointsE)
+    else
+	empty!(pointsE[])
+	notify(pointsE)
     end
 
     if section2_path != "none"
 	global cur_section = sec2_check.active[] ? sec2 : 0
-	draw_points(section2_path,"red")
+	update_points!(pointsI,anglesI,section2_path)
+	notify(pointsI)
+    else
+	empty!(pointsI[])
+	notify(pointsI)
     end
 end
 
-function inspector(sec_file,data)
-    function inspect(self,i,pos)
-	global last_hover = data[i].theta
-	sec_file*"\nθ="*string(data[i].theta)
-    end
-    return inspect
-end
-
-function project(u,theta,axis)
+function project(u,axis)
     if axis <= 4
-	return axis
+	return u[axis]
     elseif axis == 5
-	return theta
-    elseif axis == 6
 	angle = atan(u[1]-0.5+curr_mu, u[2]-sqrt(3)/2)
 	return angle
-    elseif axis == 7
+    elseif axis == 6
 	angle = atan(u[3]+sqrt(3)/2, u[4]-0.5+curr_mu)
 	return angle
+    elseif axis == 7
+	x = u[1]-0.5+curr_mu
+	y = u[2]-sqrt(3)/2
+	len = sqrt(x*x + y*y)
+	return len
+    elseif axis == 8
+	x = u[3]-0.5+curr_mu
+	y = u[4]+sqrt(3)/2
+	len = sqrt(x*x + y*y)
+	return len
     end
     return 0.0
 end
 
-function draw_points(path,color)
+function update_points!(points,angles,path)
+    empty!(points.val)
+    empty!(angles)
+    if path == "none" return end
     for sec_file in readdir(path)
 	section = parse(Int64,split(sec_file,".")[1])
 	if cur_section != 0 && cur_section != section
 	    continue
 	end
-	xpos = []
-	ypos = []
 	data = CSV.File(path*"/"*sec_file)
 	for (uStr,t,theta) in data
 	    u = parse.(Float64, split(chop(uStr,head=1,tail=1),','))
-	    push!(xpos,project(u,theta,xaxis))
-	    push!(ypos,project(u,theta,yaxis))
+	    push!(points.val,u)
+	    push!(angles,theta)
 	end
-	scatter!(ax,Point2f.(xpos,ypos),color=color, markersize = 5,
-	  inspector_label = inspector(sec_file,data))
     end
 end
 
@@ -269,14 +300,14 @@ on(sec2_input.stored_string) do s
     redraw()
 end
 
-on(events(Splt).mousebutton, priority = -1) do event
+on(events(ax).mousebutton, priority = -1) do event
     if event.button == Mouse.left && event.action == Mouse.press
-	plt,i = pick(Splt)
+	plt,i = pick(ax)
 	if plt isa Scatter
 	    clipboard(string(last_hover))
 	end
     end
 end
 
-DataInspector()
+DataInspector(ax)
 fig
