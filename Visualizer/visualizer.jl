@@ -14,10 +14,12 @@ using CSV
 system1 = "none"
 system2 = "none"
 
-section = "none"
-
 section1_path = "none"
 section2_path = "none"
+
+sec1 = 0
+sec2 = 0
+cur_section = 0
 
 xaxis=1
 yaxis=2
@@ -47,10 +49,14 @@ xaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ","Q_L4_angle","P_L4_a
 		  , default = "q1")
 yaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2","θ","Q_L4_angle","P_L4_angle"],1:7)
 		  , default = "q2")
-
+sec1_check = Toggle(fig,active = false)
+sec1_input = Textbox(fig,placeholder="E",validator = Int64)
+sec2_check = Toggle(fig,active = false)
+sec2_input = Textbox(fig,placeholder="I",validator = Int64)
 
 input_sec = inputGrid_sec[1,1:4] = [mu_menu,sys1_menu, sys2_menu, sec_menu]
-input_axis = inputGrid_axis[1,1:2] = [xaxis_menu,yaxis_menu]
+input_axis = inputGrid_axis[1,1:6] = [xaxis_menu,yaxis_menu,
+    sec1_check,sec1_input,sec2_check,sec2_input]
 
 Splt = scatter!(ax,1:10,1:10)
 empty!(ax)
@@ -118,10 +124,12 @@ end
 function redraw()
     empty!(ax)
     if section1_path != "none"
+	global cur_section = sec1_check.active[] ? sec1 : 0
 	draw_points(section1_path,"blue")
     end
 
     if section2_path != "none"
+	global cur_section = sec2_check.active[] ? sec2 : 0
 	draw_points(section2_path,"red")
     end
 end
@@ -137,6 +145,9 @@ end
 function draw_points(path,color)
     for sec_file in readdir(path)
 	section = parse(Int64,split(sec_file,".")[1])
+	if cur_section != 0 && cur_section != section
+	    continue
+	end
 	xpos = []
 	ypos = []
 	data = CSV.File(path*"/"*sec_file)
@@ -165,7 +176,7 @@ function draw_points(path,color)
 		push!(ypos,angle)
 	    end
 	end
-	scatter!(ax,Point2f.(xpos,ypos),color=color,
+	scatter!(ax,Point2f.(xpos,ypos),color=color, markersize = 5,
 	  inspector_label = inspector(sec_file,data))
     end
 end
@@ -251,6 +262,15 @@ on(xaxis_menu.selection) do n
 end
 on(yaxis_menu.selection) do n
     global yaxis = n
+    redraw()
+end
+
+on(sec1_input.stored_string) do s
+    global sec1 = parse(Int64,s)
+    redraw()
+end
+on(sec2_input.stored_string) do s
+    global sec2 = parse(Int64,s)
     redraw()
 end
 
