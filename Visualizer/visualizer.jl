@@ -142,6 +142,21 @@ function inspector(sec_file,data)
     return inspect
 end
 
+function project(u,theta,axis)
+    if axis <= 4
+	return axis
+    elseif axis == 5
+	return theta
+    elseif axis == 6
+	angle = atan(u[1]-0.5+curr_mu, u[2]-sqrt(3)/2)
+	return angle
+    elseif axis == 7
+	angle = atan(u[3]+sqrt(3)/2, u[4]-0.5+curr_mu)
+	return angle
+    end
+    return 0.0
+end
+
 function draw_points(path,color)
     for sec_file in readdir(path)
 	section = parse(Int64,split(sec_file,".")[1])
@@ -153,28 +168,8 @@ function draw_points(path,color)
 	data = CSV.File(path*"/"*sec_file)
 	for (uStr,t,theta) in data
 	    u = parse.(Float64, split(chop(uStr,head=1,tail=1),','))
-	    if xaxis <= 4
-		push!(xpos,u[xaxis])
-	    elseif xaxis == 5
-		push!(xpos,theta)
-	    elseif xaxis == 6
-		angle = atan(u[1]-0.5+curr_mu, u[2]-sqrt(3)/2)
-		push!(xpos,angle)
-	    elseif xaxis == 7
-		angle = atan(u[3]+sqrt(3)/2, u[4]-0.5+curr_mu)
-		push!(xpos,angle)
-	    end
-	    if yaxis <= 4
-		push!(ypos,u[yaxis])
-	    elseif yaxis == 5
-		push!(ypos,theta)
-	    elseif yaxis == 6
-		angle = atan(u[1]-0.5+curr_mu, u[2]-sqrt(3)/2)
-		push!(ypos,angle)
-	    elseif yaxis == 7
-		angle = atan(u[3]+sqrt(3)/2, u[4]-0.5+curr_mu)
-		push!(ypos,angle)
-	    end
+	    push!(xpos,project(u,theta,xaxis))
+	    push!(ypos,project(u,theta,yaxis))
 	end
 	scatter!(ax,Point2f.(xpos,ypos),color=color, markersize = 5,
 	  inspector_label = inspector(sec_file,data))
