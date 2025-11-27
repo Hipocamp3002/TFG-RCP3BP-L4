@@ -31,7 +31,7 @@ curr_mu = 0.0
 
 fig = Figure()
 
-ax = Axis(fig[2,1])
+ax = Axis3(fig[2,1])
 fig[1,1] = inputGrid_sec = GridLayout(tellwidth=false)
 fig[3,1] = inputGrid_axis = GridLayout(tellwidth=false)
 
@@ -63,13 +63,13 @@ input_axis = inputGrid_axis[1,1:6] = [xaxis_menu,yaxis_menu,
 pointsE = Observable(Vector{Float64}[])
 anglesE = Float64[]
 pointsE_plt = lift(pointsE) do P
-    points::Vector{Point2f} = [Point2f(project(u,xaxis),project(u,yaxis)) for u in P]
+    points::Vector{Point3f} = [Point3f(project(u,xaxis),project(u,yaxis),project(u,8)) for u in P]
     return points
 end
 anglesI = Float64[]
 pointsI = Observable(Vector{Float64}[])
 pointsI_plt = lift(pointsI) do P
-    points::Vector{Point2f} = [Point2f(project(u,xaxis),project(u,yaxis)) for u in P]
+    points::Vector{Point3f} = [Point3f(project(u,xaxis),project(u,yaxis),project(u,8)) for u in P]
     return points
 end
 
