@@ -4,7 +4,7 @@ include("systems.jl")
 
 fig = Figure()
 
-ax = Axis(fig[2,1])
+ax = Axis(fig[2,1], aspect = AxisAspect(1), autolimitaspect = 1)
 fig[1,1] = inputGrid_orbit = GridLayout(tellwidth=false)
 fig[3,1] = inputGrid_axis = GridLayout(tellwidth=false)
 
