@@ -3,37 +3,41 @@ using DiffEqCallbacks
 using LinearAlgebra
 using StaticArrays
 
+mI = SA_F64[0 1 1 0; -1 0 0 1; 0 0 0 1; 0 0 -1 0]
+
 function orbit(u,p,t)
     mu = p
+    nu = 1-mu
     q1,q2,p1,p2 = u
 
     dq1 = p1 + q2
     dq2 = p2 - q1
 
-    r1sq = (q1 + mu - 1)^2 + q2^2
+    r1sq = (q1 - nu)^2 + q2^2
     r2sq = (q1 + mu)^2 + q2^2
     r1 = sqrt(r1sq)*r1sq
     r2 = sqrt(r2sq)*r2sq
 
-    dp1 = -(mu * (q1 + mu - 1) / r1) - ((1-mu)*(q1+mu) / r2) + p2
-    dp2 = -(mu * q2 / r1) - ((1-mu) * q2 / r2) - p1
+    dp1 = -mu * (q1 - nu) / r1 - (nu*(q1+mu) / r2) + p2
+    dp2 = -mu * q2 / r1 - (nu * q2 / r2) - p1
     SA[dq1,dq2,dp1,dp2]
 end
 
 function orbitBack(u,p,t)
     mu = p
+    nu = 1-mu
     q1,q2,p1,p2 = u
 
     dq1 = -(p1 + q2)
     dq2 = q1 - p2
 
-    r1sq = (q1 + mu - 1)^2 + q2^2
+    r1sq = (q1 - nu)^2 + q2^2
     r2sq = (q1 + mu)^2 + q2^2
     r1 = sqrt(r1sq)*r1sq
     r2 = sqrt(r2sq)*r2sq
 
-    dp1 = (mu * (q1 + mu - 1) / r1) + ((1-mu)*(q1+mu) / r2) - p2
-    dp2 = (mu * q2 / r1) + ((1-mu) * q2 / r2) + p1
+    dp1 = (mu * (q1 - nu) / r1) + (nu*(q1+mu) / r2) - p2
+    dp2 = (mu * q2 / r1) + (nu * q2 / r2) + p1
     SA[dq1,dq2,dp1,dp2]
 end
 

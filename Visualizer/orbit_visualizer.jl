@@ -95,19 +95,19 @@ function max_hamiltonian()
 end
 
 function unstable_f(H_ini,err)
-    return (dt,u,p,t) -> err < abs(H_ini - hamiltonian(u,mu))
+    return (u,p,t) -> err < abs(H_ini - hamiltonian(u,mu))
 end
 
 function calc_orbit()
     s = sistema_L4(mu)
-    
     u0 = s.center + s.eps*(cos(angle)*s.Ivecs[1] + sin(angle)*s.Ivecs[2])
+    H0 = hamiltonian(u0,mu)
 
     u0sa = SVector{4,Float64}(u0)
-    prob = ODEProblem(orbit,u0sa,(0.0,time),(mu))
-    sol = solve(prob,Vern9(),
+    prob = ODEProblem(orbit!,u0,(0.0,time),(mu))
+    @time sol = solve(prob,Vern9(),
 		abstol = 1e-14,reltol = 1e-14,
-		unstable_check = unstable_f(hamiltonian(u0,mu),1e-10))
+		isoutofdomain = unstable_f(hamiltonian(u0,mu),1e-10))
     append!(path[],[collect(x) for x in sol.u])
 end
 
