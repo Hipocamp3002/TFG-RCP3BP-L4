@@ -1,6 +1,7 @@
 using GLMakie
 using OrdinaryDiffEq
 include("systems.jl")
+include("LeviCivita.jl")
 
 fig = Figure()
 
@@ -98,17 +99,84 @@ function unstable_f(H_ini,err)
     return (u,p,t) -> err < abs(H_ini - hamiltonian(u,mu))
 end
 
+function unstable_f_P2(H_ini,err)
+    return (u,p,t) -> err < abs(H_ini - hamiltonian(uU2qp(u) + [1-mu,0,0,1-mu],mu))
+end
+
+function collCondition(out,u,t,integrator)
+    out[1] = norm(u[1:2] - [-mu,0]) - 0.1
+    out[2] = norm(u[1:2] - [1-mu,0]) - 0.1
+end
+
+function exitColl2Condition(u,t,integrator)
+    q1,q2,p1,p2 = uU2qp(u)
+    sqrt(q1^2 + q2^2) - 0.1
+end
+function exitColl2Affect!(integrator)
+    q1,q2,p1,p2 = uU2qp(integrator.u)
+    if (p1+q2)*q1 + (p2-q1)*q2 > 0
+	terminate!(integrator)
+    end
+end
+
+P2cb = ContinuousCallback(exitColl2Condition,exitColl2Affect!)
+
+#last collision
+last_collision = 0
+function collAffect!(integrator,idx)
+    global last_collision = idx
+    if idx == 1
+	terminate!(integrator)
+    elseif idx == 2
+	q1,q2,p1,p2 = integrator.u - [1-mu,0,0,1-mu]
+	if (p1+q2)*q1 + (p2-q1)*q2 < 0
+	    terminate!(integrator)
+	end
+    end
+end
+
+cb = VectorContinuousCallback(collCondition,collAffect!,2)
+
 function calc_orbit()
     s = sistema_L4(mu)
     u0 = s.center + s.eps*(cos(angle)*s.Ivecs[1] + sin(angle)*s.Ivecs[2])
-    H0 = hamiltonian(u0,mu)
+    H0 = hamiltonian(s.center,mu)
 
     u0sa = SVector{4,Float64}(u0)
-    prob = ODEProblem(orbit!,u0,(0.0,time),(mu))
-    @time sol = solve(prob,Vern9(),
+    prob = ODEProblem(orbit,u0sa,(0.0,time),(mu))
+    probP2 = ODEProblem(LCorbitP2,u0sa,(0.0,time),(mu,H0))
+
+    @time for i = 1:1000
+	sol = solve(prob,Vern9(),
 		abstol = 1e-14,reltol = 1e-14,
-		isoutofdomain = unstable_f(hamiltonian(u0,mu),1e-10))
-    append!(path[],[collect(x) for x in sol.u])
+		callback = cb,
+		isoutofdomain = unstable_f(H0,1e-10))
+	append!(path[],[collect(x) for x in sol.u])
+	if sol.retcode == SciMLBase.ReturnCode.Terminated
+	    if last_collision == 2
+		u0P2  = qp2uU(sol.u[end] - [1-mu,0,0,1-mu])
+		probP2 = remake(probP2;u0=u0P2,
+			tspan = (sol.t[end],time))
+		solP2 = solve(probP2,Vern9(),
+		    abstol = 1e-14,reltol = 1e-14,
+		    callback = P2cb,
+		    isoutofdomain = unstable_f_P2(H0,1e-10)
+		)
+		append!(path[],[collect(uU2qp(x) + [1-mu,0,0,1-mu]) for x in solP2.u])
+		if solP2.retcode == SciMLBase.ReturnCode.Terminated
+		    prob = remake(prob;u0=uU2qp(solP2.u[end]) + [1-mu,0,0,1-mu],
+			tspan = (solP2.t[end],time))
+		else
+		    break
+		end
+	    else
+		break
+	    end
+	else
+	    break
+	end
+    end
+
 end
 
 on(calc_button.clicks) do n
