@@ -204,7 +204,6 @@ function calc_orbit()
     u0 = s.center + s.eps*(cos(angle)*s.Ivecs[1] + sin(angle)*s.Ivecs[2])
     H0 = hamiltonian(s.center,mu)
     u0sa = SVector{4,Float64}(u0)
-    prob = ODEProblem(orbit,u0sa,(0.0,time),(mu))
     
     prob = ODEProblem(orbit_with_coll,SVector{5}([u0sa;0]),(0.0,time),[mu,H0])
 	sol = solve(prob,Vern9(),
