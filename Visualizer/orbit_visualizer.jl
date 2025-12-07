@@ -27,7 +27,7 @@ time = 100.0
 x_axis = 1
 y_axis = 2
 
-path = Observable(Vector{Vector{Float64}}(undef,0))
+path = Observable(Vector{SVector{4,Float64}}(undef,0))
 path_points = lift(path) do P
     points = Point2f[]
     for u in P
@@ -95,88 +95,125 @@ function max_hamiltonian()
     return max_H
 end
 
-function unstable_f(H_ini,err)
-    return (u,p,t) -> err < abs(H_ini - hamiltonian(u,mu))
+
+
+function orbit_with_coll(U,p,t)::SVector{5,Float64}
+    mu,E = p
+    u = SVector{4}(U[1:4])
+    coll = U[5]
+    if coll == 2.0
+	res = LCorbitP2(u,(mu,E),t) 
+	return [res ;0.0]
+    elseif coll == 1.0
+	res = LCorbitP1(u,(mu,E),t)
+	return [res ;0.0]
+    else
+	res = orbit(u,mu,t)
+	return [res ; 0.0]
+    end
+    SA[0.0,0.0,0.0,0.0,0.0]
 end
 
-function unstable_f_P2(H_ini,err)
-    return (u,p,t) -> err < abs(H_ini - hamiltonian(uU2qp(u) + [1-mu,0,0,1-mu],mu))
-end
-
-function collCondition(out,u,t,integrator)
-    out[1] = norm(u[1:2] - [-mu,0]) - 0.1
-    out[2] = norm(u[1:2] - [1-mu,0]) - 0.1
-end
-
-function exitColl2Condition(u,t,integrator)
-    q1,q2,p1,p2 = uU2qp(u)
-    sqrt(q1^2 + q2^2) - 0.1
-end
-function exitColl2Affect!(integrator)
-    q1,q2,p1,p2 = uU2qp(integrator.u)
-    if (p1+q2)*q1 + (p2-q1)*q2 > 0
-	terminate!(integrator)
+min_coll = 0
+function collCondition(u,_,integrator)
+    c = integrator.u[5]
+    mu = integrator.p[1]
+    if c == 0
+	q1 = u[1]
+	q2 = u[2]
+	coll1 = (q1+mu)^2 + q2^2 - 0.01
+	coll2 = (q1+mu-1)^2 + q2^2 - 0.01
+	if abs(coll1) < abs(coll2)
+	    global min_coll = 1
+	    return coll1
+	else
+	    global min_coll = 2
+	    return coll2
+	end
+    elseif c == 1
+	u1 = u[1]
+	u2 = u[2]
+	coll1 = (u1^2 + u2^2)^2 - 0.01
+	global min_coll = 1
+	return coll1
+    elseif c == 2
+	u1 = u[1]
+	u2 = u[2]
+	coll2 = (u1^2 + u2^2)^2 - 0.01
+	global min_coll = 2
+	return coll2
     end
 end
 
-P2cb = ContinuousCallback(exitColl2Condition,exitColl2Affect!)
+function collAffect(integrator)
+    U = integrator.u
+    u = SA[U[1],U[2],U[3],U[4]]
+    c = integrator.u[5]
+    mu = integrator.p[1]
+    if min_coll == 1
+	if c == 0
+	    q1 = u[1] + mu
+	    q2 = u[2]
+	    p1 = u[3]
+	    p2 = u[4] + mu
+	    if q1*(p1+q2) + q2*(p2-q1) < 0
+		integrator.u = SVector{5}([qp2uU(SA[q1,q2,p1,p2]);1])
+	    end
+	elseif c == 1
+	    u1,u2,U1,U2 = u
+	    if (U1*u1 + U2*u2)/2 > 0
+		u_new = uU2qp(u) + [-mu,0.0,0.0,-mu]
+		integrator.u = SVector{5}([u_new ; 0])
+	    end
 
-#last collision
-last_collision = 0
-function collAffect!(integrator,idx)
-    global last_collision = idx
-    if idx == 1
-	terminate!(integrator)
-    elseif idx == 2
-	q1,q2,p1,p2 = integrator.u - [1-mu,0,0,1-mu]
-	if (p1+q2)*q1 + (p2-q1)*q2 < 0
-	    terminate!(integrator)
+	end
+    elseif min_coll == 2
+	if c == 0
+	    q1 = u[1] - 1 + mu
+	    q2 = u[2]
+	    p1 = u[3]
+	    p2 = u[4] - 1 + mu
+	    if q1*(p1+q2) + q2*(p2-q1) < 0
+		integrator.u = SVector{5}([qp2uU(SA[q1,q2,p1,p2]);2])
+	    end
+	elseif c == 2
+	    u1,u2,U1,U2 = u
+	    if (U1*u1 + U2*u2)/2 > 0
+		u_new = uU2qp(u) + [1-mu,0,0,1-mu]
+		integrator.u = SVector{5}([u_new ; 0])
+	    end
 	end
     end
 end
 
-cb = VectorContinuousCallback(collCondition,collAffect!,2)
+cb = ContinuousCallback(collCondition,collAffect)
+
+function sol2pos(U)
+    u = U[1:4]
+    c = U[5]
+    if c == 1
+	return uU2qp(u) - [mu,0,0,mu]
+    elseif c== 2
+	return uU2qp(u) + [1-mu,0,0,1-mu]
+    end
+    return u
+end
 
 function calc_orbit()
     s = sistema_L4(mu)
     u0 = s.center + s.eps*(cos(angle)*s.Ivecs[1] + sin(angle)*s.Ivecs[2])
     H0 = hamiltonian(s.center,mu)
-
     u0sa = SVector{4,Float64}(u0)
     prob = ODEProblem(orbit,u0sa,(0.0,time),(mu))
-    probP2 = ODEProblem(LCorbitP2,u0sa,(0.0,time),(mu,H0))
-
-    @time for i = 1:1000
+    
+    prob = ODEProblem(orbit_with_coll,SVector{5}([u0sa;0]),(0.0,time),[mu,H0])
 	sol = solve(prob,Vern9(),
-		abstol = 1e-14,reltol = 1e-14,
+	    	abstol = 1e-14,reltol = 1e-14,
+		dense = false,
 		callback = cb,
-		isoutofdomain = unstable_f(H0,1e-10))
-	append!(path[],[collect(x) for x in sol.u])
-	if sol.retcode == SciMLBase.ReturnCode.Terminated
-	    if last_collision == 2
-		u0P2  = qp2uU(sol.u[end] - [1-mu,0,0,1-mu])
-		probP2 = remake(probP2;u0=u0P2,
-			tspan = (sol.t[end],time))
-		solP2 = solve(probP2,Vern9(),
-		    abstol = 1e-14,reltol = 1e-14,
-		    callback = P2cb,
-		    isoutofdomain = unstable_f_P2(H0,1e-10)
-		)
-		append!(path[],[collect(uU2qp(x) + [1-mu,0,0,1-mu]) for x in solP2.u])
-		if solP2.retcode == SciMLBase.ReturnCode.Terminated
-		    prob = remake(prob;u0=uU2qp(solP2.u[end]) + [1-mu,0,0,1-mu],
-			tspan = (solP2.t[end],time))
-		else
-		    break
-		end
-	    else
-		break
-	    end
-	else
-	    break
-	end
-    end
-
+	    	#isoutofdomain = unstable_f(H0,1e-10)
+	     )
+    append!(path[],sol2pos.(sol.u))
 end
 
 on(calc_button.clicks) do n
