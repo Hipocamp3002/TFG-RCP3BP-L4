@@ -21,7 +21,6 @@ function eq_dp1(u,mu)
     r2sq = (q1 + mu)^2 + q2^2
     r1 = sqrt(r1sq)*r1sq
     r2 = sqrt(r2sq)*r2sq
-
     return -(mu * (q1 + mu - 1) / r1) - ((1-mu)*(q1+mu) / r2) + p2
 end
 function eq_dp2(u,mu)
@@ -31,7 +30,6 @@ function eq_dp2(u,mu)
     r2sq = (q1 + mu)^2 + q2^2
     r1 = sqrt(r1sq)*r1sq
     r2 = sqrt(r2sq)*r2sq
-
     return -(mu * q2 / r1) - ((1-mu) * q2 / r2) - p1
 end
 function eq_Q(u,mu)

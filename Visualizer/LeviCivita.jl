@@ -129,18 +129,19 @@ function LCorbitBackP2(u,p,t)
     du2 = 0.25*(U2 - 2*usq*u1)
     
     a = (1 + 2*(u1^2-u2^2)+usq^2)
-    A = a^-1 + u1^2 - u2^2
+    A = 1/sqrt(a) + u1^2 - u2^2
     a32 = sqrt(a)*a
 
-    Adu1 = (4*u1 + 4*usq*u1)/a32 + 2*u1
-    Adu2 = (4*usq*u2 - 4*u2)/a32 - 2*u2
+    Adu1 = -0.5*(4*u1 + 4*usq*u1)/a32 + 2*u1
+    Adu2 = -0.5*(4*usq*u2 - 4*u2)/a32 - 2*u2
 
-    E1 = E+(nu^2)/2
+    E1 = E + (nu^2)/2
     #Negats al retornar
-    dU1 = 4*du1*u1*u2 - 2*du2*(usq+2*u1^2) - 3*u1*usq^2 - 2*u1*E1 - nu*(2*u1*A + usq*dAu1)
-    dU2 = 2*du1*(usq+2*u2^2) - 4*du2*u1*u2 - 3*u2*usq^2 - 2*u1*E1 - nu*(2*u2*A + usq*dAu2)
+    dU1 = 4*du1*u1*u2 - 2*du2*(usq+2*u1^2) - 3*u1*usq^2 - 2*u1*E1 - nu*(2*u1*A + usq*Adu1)
+    dU2 = 2*du1*(usq+2*u2^2) - 4*du2*u1*u2 - 3*u2*usq^2 - 2*u2*E1 - nu*(2*u2*A + usq*Adu2)
 
     SA[-du1,-du2,dU1,dU2]
+
 end
 
 function hamiltonianP2(u,mu,E)
