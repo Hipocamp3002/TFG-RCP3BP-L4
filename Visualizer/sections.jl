@@ -6,15 +6,15 @@ struct section
     dir_cond
 end
 
-function eq_dq1(u,mu)
+function eq_dq1(u,t,mu)
     q1,q2,p1,p2 = u
     return p1 + q2
 end
-function eq_dq2(u,mu)
+function eq_dq2(u,t,mu)
     q1,q2,p1,p2 = u
     return p2 - q1
 end
-function eq_dp1(u,mu)
+function eq_dp1(u,t,mu)
     q1,q2,p1,p2 = u
 
     r1sq = (q1 + mu - 1)^2 + q2^2
@@ -23,7 +23,7 @@ function eq_dp1(u,mu)
     r2 = sqrt(r2sq)*r2sq
     return -(mu * (q1 + mu - 1) / r1) - ((1-mu)*(q1+mu) / r2) + p2
 end
-function eq_dp2(u,mu)
+function eq_dp2(u,t,mu)
     q1,q2,p1,p2 = u
 
     r1sq = (q1 + mu - 1)^2 + q2^2
@@ -32,26 +32,26 @@ function eq_dp2(u,mu)
     r2 = sqrt(r2sq)*r2sq
     return -(mu * q2 / r1) - ((1-mu) * q2 / r2) - p1
 end
-function eq_Q(u,mu)
+function eq_Q(u,t,mu)
     U = u[1:2] - [0.5-mu,sqrt(3)/2]
     U[1]*U[1] + U[2]*U[2]
 end
-function eq_P(u,mu)
+function eq_P(u,t,mu)
     U = u[3:4] - [-sqrt(3)/2,0.5-mu]
     U[1]*U[1] + U[2]*U[2]
 end
-function eq_QP(u,mu)
+function eq_QP(u,t,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
     U[1]*U[1] + U[2]*U[2] + U[3]*U[3] + U[4]*U[4] 
 end
 
 
-function gt_dQ(u,mu)
+function gt_dQ(u,t,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
     return 0 < (U[1]*(U[3]+U[2]) + U[2]*(U[4]-U[1]))
 end
 
-function gt_dP(u,mu)
+function gt_dP(u,t,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
     q1,q2,p1,p2 = u
     r1sq = (q1 + mu - 1)^2 + q2^2
@@ -65,7 +65,7 @@ function gt_dP(u,mu)
     return 0 < U[3]*dU3 + U[4]*dU4
 end
 
-function gt_dQP(u,mu)
+function gt_dQP(u,t,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
     q1,q2,p1,p2 = U
 
@@ -85,11 +85,11 @@ function gt_dQP(u,mu)
 end
 
 
-function eq_Q2P1(u,mu)
+function eq_Q2P1(u,t,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
     U[2]*U[2] + U[3]*U[3]
 end
-function gt_dQ2P1(u,mu)
+function gt_dQ2P1(u,t,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
     q1,q2,p1,p2 = U
 
@@ -106,11 +106,11 @@ function gt_dQ2P1(u,mu)
     return U[2]*dU[2] + U[3]*dU[3] > 0
 end
 
-function eq_Q1P2(u,mu)
+function eq_Q1P2(u,t,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
     U[1]*U[1] + U[4]*U[4]
 end
-function gt_dQ1P2(u,mu)
+function gt_dQ1P2(u,t,mu)
     U = u - [0.5-mu,sqrt(3)/2,-sqrt(3)/2, 0.5-mu]
     q1,q2,p1,p2 = U
 
@@ -127,7 +127,7 @@ function gt_dQ1P2(u,mu)
     return U[1]*dU[1] + U[4]*dU[4] > 0
 end
 
-function eq_dr(u,mu)
+function eq_dr(u,t,mu)
     q1,q2,p1,p2 = u
     r = sqrt(q1*q1 + q2*q2)
     dq1 = p1 + q2
@@ -135,7 +135,17 @@ function eq_dr(u,mu)
     return (q1*dq1 + q2*dq2)/r
 end
 
-function eq_dθ(u,mu)
+function eq_dr(x,y,u,t,mu)
+    q1,q2,p1,p2 = u
+    dq1 = p1 + q2
+    dq2 = p2 - q1
+    q1 = q1 - x
+    q2 = q2 - y
+    r = sqrt(q1*q1 + q2*q2)
+    return (q1*dq1 + q2*dq2)/r
+end
+
+function eq_dθ(u,t,mu)
     q1,q2,p1,p2 = u
     
 
@@ -146,6 +156,45 @@ function eq_dθ(u,mu)
     dq2 = p2 - q1
 
     return (dq2*q1 - dq1*q2)*cos2θ/(q1*q1)
+end
+
+function eq_dθ(x,y,u,t,mu)
+    q1,q2,p1,p2 = u
+    dq1 = p1 + q2
+    dq2 = p2 - q1
+
+    q1 = q1 - x
+    q2 = q2 - y
+    Q = q1*q1 + q2*q2
+    cos2θ = (q1*q1)/Q
+
+    return (dq2*q1 - dq1*q2)*cos2θ/(q1*q1)
+end
+
+function eq_q1_rot(u,t,mu)
+    q1,q2,p1,p2 = u
+
+    q1r = q1*cos(t) - q2*sin(t)
+    #q2r = q1*sin(t) + q2*cos(t)
+    #p1r = p1*cos(t) - p2*sin(t)
+    #p2r = p1*sin(t) + p2*cos(t)
+    
+    return q1r
+end
+function eq_q2_rot(u,t,mu)
+    q1,q2,p1,p2 = u
+
+    #q1r = q1*cos(t) - q2*sin(t)
+    q2r = q1*sin(t) + q2*cos(t)
+    #p1r = p1*cos(t) - p2*sin(t)
+    #p2r = p1*sin(t) + p2*cos(t)
+    
+    return q2r
+end
+
+function eq_dq1_rot(u,t,mu)
+    q1,q2,p1,p2 = u
+    return sin(t)
 end
 
 Q_dQL4 = section(
@@ -194,47 +243,71 @@ Q1P2_L4_e1 = section(
 dq1_gtdq2 = section(
     0.0,
     eq_dq1,
-    (u,mu) -> eq_dq2(u,mu) > 0.0
+    (u,t,mu) -> eq_dq2(u,t,mu) > 0.0
 )
 
 dq1_ltdq2 = section(
     0.0,
     eq_dq1,
-    (u,mu) -> eq_dq2(u,mu) < 0.0
+    (u,t,mu) -> eq_dq2(u,t,mu) < 0.0
 )
 dq2_gtdq1 = section(
     0.0,
     eq_dq2,
-    (u,mu) -> eq_dq1(u,mu) > 0.0
+    (u,t,mu) -> eq_dq1(u,t,mu) > 0.0
 )
 
 dq2_ltdq1 = section(
     0.0,
     eq_dq2,
-    (u,mu) -> eq_dq1(u,mu) < 0.0
+    (u,t,mu) -> eq_dq1(u,t,mu) < 0.0
 )
 
 dr_gtdθ = section(
     0.0,
     eq_dr,
-    (u,mu) -> eq_dθ(u,mu) > 0.0
+    (u,t,mu) -> eq_dθ(u,t,mu) > 0.0
 )
 dr_ltdθ = section(
     0.0,
     eq_dr,
-    (u,mu) -> eq_dθ(u,mu) < 0.0
+    (u,t,mu) -> eq_dθ(u,t,mu) < 0.0
 )
 
 dθ_gtdr = section(
     0.0,
     eq_dθ,
-    (u,mu) -> eq_dr(u,mu) > 0.0
+    (u,t,mu) -> eq_dr(u,t,mu) > 0.0
 )
 dθ_ltdr = section(
     0.0,
     eq_dθ,
-    (u,mu) -> eq_dr(u,mu) < 0.0
+    (u,t,mu) -> eq_dr(u,t,mu) < 0.0
 )
+
+q1r_gtdq1r = section(
+    0.0,
+    eq_q1_rot,
+    (u,t,mu) -> eq_dq1_rot(u,t,mu) > 0.0
+)
+q1r_ltdq1r = section(
+    0.0,
+    eq_q1_rot,
+    (u,t,mu) -> eq_dq1_rot(u,t,mu) < 0.0
+)
+
+dr_gtdθ_L4 = section(
+    0.0,
+    (u,t,mu) -> eq_dr(0.5-mu,sqrt(3)/2,u,t,mu),
+    (u,t,mu) -> eq_dθ(0.5-mu,sqrt(3)/2,u,t,mu) > 0.0
+)
+
+dr_ltdθ_L4 = section(
+    0.0,
+    (u,t,mu) -> eq_dr(0.5-mu,sqrt(3)/2,u,t,mu),
+    (u,t,mu) -> eq_dθ(0.5-mu,sqrt(3)/2,u,t,mu) < 0.0
+)
+
 
 return SortedDict([("Q_dQL4",Q_dQL4),
     ("Q_dQL4_e1", Q_dQL4_e1),
@@ -250,5 +323,9 @@ return SortedDict([("Q_dQL4",Q_dQL4),
     ("dr_gtdθ",dr_gtdθ),
     ("dr_ltdθ",dr_ltdθ),
     ("dθ_gtdr",dθ_gtdr),
-    ("dθ_ltdr",dθ_ltdr)])
+    ("dθ_ltdr",dθ_ltdr),
+    ("q1r_gtdq1r",q1r_gtdq1r),
+    ("q1r_ltdq1r",q1r_ltdq1r),
+    ("dr_gtdθ_L4",dr_gtdθ_L4),
+    ("dr_ltdθ_L4",dr_ltdθ_L4)])
 

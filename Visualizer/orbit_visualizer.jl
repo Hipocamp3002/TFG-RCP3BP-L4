@@ -15,8 +15,9 @@ time_input = Textbox(fig,placeholder = "Enter time",validator = Float64)
 calc_button = Button(fig,label="calculate")
 
 
-xaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2"],1:4), default = "q1")
-yaxis_menu = Menu(fig,options=zip(["q1","q2","p1","p2"],1:4), default = "q2")
+axis_options = ["q1","q2","p1","p2","dq1","dq2","dp1","dp2"]
+xaxis_menu = Menu(fig,options=zip(axis_options ,1:8), default = "q1")
+yaxis_menu = Menu(fig,options=zip(axis_options ,1:8), default = "q2")
 
 input_orbit = inputGrid_orbit[1,1:4] = [angle_input,mu_input,calc_button,time_input]
 input_axis = inputGrid_axis[1,1:2] = [xaxis_menu,yaxis_menu]
@@ -27,32 +28,55 @@ time = 100.0
 x_axis = 1
 y_axis = 2
 
+function project(u,axis)
+    if axis <= 4
+	return u[axis]
+    elseif axis == 5
+	return u[3] + u[2]
+    elseif axis == 6
+	return u[4] - u[1]
+    elseif axis == 7 || axis == 8
+	nu = 1-mu
+	q1,q2,p1,p2 = u
+
+	r1sq = (q1 - nu)^2 + q2^2
+	r2sq = (q1 + mu)^2 + q2^2
+	r1 = sqrt(r1sq)*r1sq
+	r2 = sqrt(r2sq)*r2sq
+	if axis == 7
+	    return -mu * (q1 - nu) / r1 - (nu*(q1+mu) / r2) + p2
+	elseif axis == 8
+	    return -mu * q2 / r1 - (nu * q2 / r2) - p1
+	end
+    end
+    return 0
+end
+
 path = Observable(Vector{SVector{4,Float64}}(undef,0))
 path_points = lift(path) do P
-    points = Point2f[]
-    for u in P
-	push!(points,Point2f(u[x_axis],u[y_axis]))
-    end
-return points
+    points::Vector{Point2f} = [Point2f(project(u,x_axis),project(u,y_axis)) for u in P]
+
+    return points
 end
 
 bodies = Observable([[-mu,0,0,0],[1-mu,0,0,0]])
-bodies_points = lift(bodies) do u
-    Point2f.([u[1][x_axis],u[2][x_axis]],[u[1][y_axis],u[2][y_axis]])
+bodies_points = lift(bodies) do P
+    #Point2f.([u[1][x_axis],u[2][x_axis]],[u[1][y_axis],u[2][y_axis]])
+    [Point2f(project(u,x_axis),project(u,y_axis)) for u in P]
 end
 
-lagrange = Observable([0.5-mu sqrt(3)/2 -sqrt(3)/2 0.5-mu ;
-		      0.5-mu -sqrt(3)/2 sqrt(3)/2 0.5-mu])
-lagrange_points = lift(lagrange) do L
-    Point2f.(L[:,x_axis],L[:,y_axis])
+lagrange = Observable([[0.5-mu, sqrt(3)/2, -sqrt(3)/2, 0.5-mu],
+    [0.5-mu, -sqrt(3)/2, sqrt(3)/2, 0.5-mu]])
+lagrange_points = lift(lagrange) do P
+    [Point2f(project(u,x_axis),project(u,y_axis)) for u in P]
 end
 
 on(mu_input.stored_string) do s
     global mu = parse(Float64,s)
     bodies[][1] = [-mu,0,0,0]
     bodies[][2] = [1-mu,0,0,0]
-    lagrange[][1,:] = [0.5-mu, sqrt(3)/2, -sqrt(3)/2, 0.5-mu]
-    lagrange[][2,:] = [0.5-mu, -sqrt(3)/2, sqrt(3)/2, 0.5-mu]
+    lagrange[][1] = [0.5-mu, sqrt(3)/2, -sqrt(3)/2, 0.5-mu]
+    lagrange[][2] = [0.5-mu, -sqrt(3)/2, sqrt(3)/2, 0.5-mu]
     empty!(path[])
     notify(path)
     notify(bodies)

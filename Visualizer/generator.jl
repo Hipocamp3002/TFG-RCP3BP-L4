@@ -74,27 +74,28 @@ function getCond(S)
     function condition(out,U,_,integrator)
 	c = U[5]
 	mu = integrator.p[1]
+	t = integrator.t
 	u = SVector{4}([U[1],U[2],U[3],U[4]])
 	if c == 0.0
 	    q1 = u[1]
 	    q2 = u[2]
 	    out[1] = (q1+mu)^2 + q2^2 - 0.01
 	    out[2] = (q1+mu-1)^2 + q2^2 - 0.01
-	    out[3] = eq_cond(u,mu) - cut
+	    out[3] = eq_cond(u,t,mu) - cut
 	elseif c == 1.0
 	    u1 = u[1]
 	    u2 = u[2]
 	    out[1] = (u1^2 + u2^2)^2 - 0.01
 
 	    u = uU2qp(u) - [mu,0,0,mu]
-	    out[3] = eq_cond(u,mu) - cut
+	    out[3] = eq_cond(u,t,mu) - cut
 	elseif c == 2.0
 	    u1 = u[1]
 	    u2 = u[2]
 	    out[2] = (u1^2 + u2^2)^2 - 0.01
 	    
 	    u = uU2qp(u) + [1-mu,0,0,1-mu]
-	    out[3] = eq_cond(u,mu) - cut
+	    out[3] = eq_cond(u,t,mu) - cut
 	end
     end
 end
@@ -107,6 +108,7 @@ function getAffect(S,dir::orbit_type)
 	U = integrator.u
 	c = U[5]
 	mu = integrator.p[1]
+	t = integrator.t
 	u = SVector{4}([U[1],U[2],U[3],U[4]])
 	if idx == 1
 	    if c == 0
@@ -142,7 +144,7 @@ function getAffect(S,dir::orbit_type)
 	    end
 	elseif idx == 3
 	    u = sol2pos(U,mu)
-	    if dir_cond(u,mu)
+	    if dir_cond(u,t,mu)
 		savevalues!(integrator, true)
 	    end
 	    u_modified!(integrator,false)

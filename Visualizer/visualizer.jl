@@ -45,10 +45,10 @@ sys1_menu = Menu(fig,options=["none"], default="none")
 sys2_menu = Menu(fig,options=["none"], default="none")
 sec_menu = Menu(fig,options=["none"], default="none")
 
-axis_opt = ["q1","q2","p1","p2", "Q_L4_angle","P_L4_angle","Q_L4_mod","P_L4_mod"]
-xaxis_menu = Menu(fig,options=zip(axis_opt,1:8)
+axis_opt = ["q1","q2","p1","p2", "Q_L4_angle","P_L4_angle","Q_L4_mod","P_L4_mod","theta"]
+xaxis_menu = Menu(fig,options=zip(axis_opt,1:9)
 		  , default = "q1")
-yaxis_menu = Menu(fig,options=zip(axis_opt,1:8)
+yaxis_menu = Menu(fig,options=zip(axis_opt,1:9)
 		  , default = "q2")
 sec1_check = Toggle(fig,active = false)
 sec1_input = Textbox(fig,placeholder="E",validator = Int64)
@@ -59,17 +59,16 @@ input_sec = inputGrid_sec[1,1:4] = [mu_menu,sys1_menu, sys2_menu, sec_menu]
 input_axis = inputGrid_axis[1,1:6] = [xaxis_menu,yaxis_menu,
     sec1_check,sec1_input,sec2_check,sec2_input]
 
-
 pointsE = Observable(Vector{Float64}[])
-anglesE = Float64[]
+anglesE = Float64[] #TODO: if more info needed. transform into data
 pointsE_plt = lift(pointsE) do P
-    points::Vector{Point2f} = [Point2f(project(u,xaxis),project(u,yaxis)) for u in P]
+    points::Vector{Point2f} = [Point2f(project(u,a,xaxis),project(u,a,yaxis)) for (u,a) in zip(P,anglesE)]
     return points
 end
 anglesI = Float64[]
 pointsI = Observable(Vector{Float64}[])
 pointsI_plt = lift(pointsI) do P
-    points::Vector{Point2f} = [Point2f(project(u,xaxis),project(u,yaxis)) for u in P]
+    points::Vector{Point2f} = [Point2f(project(u,a,xaxis),project(u,a,yaxis)) for (u,a) in zip(P,anglesI)]
     return points
 end
 
@@ -166,7 +165,7 @@ function redraw()
     end
 end
 
-function project(u,axis)
+function project(u,theta,axis)
     if axis <= 4
 	return u[axis]
     elseif axis == 5
@@ -185,6 +184,8 @@ function project(u,axis)
 	y = u[4]+sqrt(3)/2
 	len = sqrt(x*x + y*y)
 	return len
+    elseif axis == 9
+	return theta
     end
     return 0.0
 end
