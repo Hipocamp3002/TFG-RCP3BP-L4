@@ -127,6 +127,42 @@ function gt_dQ1P2(u,t,mu)
     return U[1]*dU[1] + U[4]*dU[4] > 0
 end
 
+function torus(u,_,mu)
+    q1,q2,p1,p2 = u
+    Q1 = q1 - 0.5 + mu
+    P2 = p2 - 0.5 + mu
+
+    l = sqrt(q2^2 + p1^2) - sqrt(3/2)
+    return sqrt(l^2 + Q1^2 + P2^2)
+end
+
+function dtorus(u,_,mu)
+    nu = 1-mu
+    q1,q2,p1,p2 = u
+    Q1 = q1 - 0.5 + mu
+    P2 = p2 - 0.5 + mu
+
+    dq1 = p1 + q2
+    dq2 = p2 - q1
+
+    r1sq = (q1 - nu)^2 + q2^2
+    r2sq = (q1 + mu)^2 + q2^2
+    r1 = sqrt(r1sq)*r1sq
+    r2 = sqrt(r2sq)*r2sq
+
+    dp1 = -mu * (q1 - nu) / r1 - (nu*(q1+mu) / r2) + p2
+    dp2 = -mu * q2 / r1 - (nu * q2 / r2) - p1
+
+    dp1 = -dp1
+    dp2 = -dp2
+
+    a = sqrt(q2^2+p1^2)
+    l = a - sqrt(3/2)
+    dis = sqrt(l^2 + Q1^2 + P2^2)
+
+    return (l*( (q2*dq2+p1*dp1)/a) + Q1*dq1 + P2*dp2)/dis
+end
+
 function eq_dr(u,t,mu)
     q1,q2,p1,p2 = u
     r = sqrt(q1*q1 + q2*q2)
@@ -195,6 +231,72 @@ end
 function eq_dq1_rot(u,t,mu)
     q1,q2,p1,p2 = u
     return sin(t)
+end
+
+#derivada q2 - p1
+function dq2_m_dp1(u,t,mu)
+    nu = 1-mu
+    q1,q2,p1,p2 = u
+
+    dq2 = p2 - q1
+
+    r1sq = (q1 - nu)^2 + q2^2
+    r2sq = (q1 + mu)^2 + q2^2
+    r1 = sqrt(r1sq)*r1sq
+    r2 = sqrt(r2sq)*r2sq
+
+    dp1 = -mu * (q1 - nu) / r1 - (nu*(q1+mu) / r2) + p2
+    return dq2 - dp1
+end
+
+function coll_U(u,_,mu)
+    nu = 1-mu
+    U0 = (nu^2 + mu^2)/(mu*nu)
+
+    q1,q2,p1,p2 = u
+
+    return nu/sqrt((q1+mu)^2 + q2^2) + mu/sqrt((q1-nu)^2+q2^2) - U0
+end
+
+function dcoll_U(u,_,mu)
+    nu = 1-mu
+    q1,q2,p1,p2 = u
+
+    r1sq = (q1 - nu)^2 + q2^2
+    r2sq = (q1 + mu)^2 + q2^2
+    r1 = sqrt(r1sq)*r1sq
+    r2 = sqrt(r2sq)*r2sq
+
+    dq1 = p1 + q2
+    dq2 = p2 - q1
+
+    return -nu*(q1*dq1 + q2*dq2 + mu*dq1)/r2 - mu*(q1*dq1 + q2*dq2 - nu*dq1)/r1
+end
+
+function eq_dQ(u,t,mu)
+    q1,q2,p1,p2 = u
+    dq1 = p1 + q2
+    dq2 = p2 - q1
+
+    return sqrt(dq1^2 + dq2^2) - mu/2
+end
+
+function eq_ddQ(u,t,mu)
+    nu = 1-mu
+    q1,q2,p1,p2 = u
+
+    dq1 = p1 + q2
+    dq2 = p2 - q1
+
+    r1sq = (q1 - nu)^2 + q2^2
+    r2sq = (q1 + mu)^2 + q2^2
+    r1 = sqrt(r1sq)*r1sq
+    r2 = sqrt(r2sq)*r2sq
+
+    dp1 = -mu * (q1 - nu) / r1 - (nu*(q1+mu) / r2) + p2
+    dp2 = -mu * q2 / r1 - (nu * q2 / r2) - p1
+
+    return (dq1*(dp1 + dq2) + dq2*(dp2-dq1))/sqrt(dq1^2 + dq2^2)
 end
 
 Q_dQL4 = section(
@@ -308,6 +410,35 @@ dr_ltdθ_L4 = section(
     (u,t,mu) -> eq_dθ(0.5-mu,sqrt(3)/2,u,t,mu) < 0.0
 )
 
+time = section(
+    0.0,
+    (_,t,_) -> sin(t),
+    (_,t,_) -> cos(t) < 0.0
+)
+
+torus_out = section(
+    0.25,
+    torus,
+    (u,t,mu) -> dtorus(u,t,mu) > 0
+)
+
+dq2_minus_dp1 = section(
+    0,
+    (u,_,_) -> u[2]-u[3],
+    (u,t,mu)-> dq2_m_dp1(u,t,mu) > 0
+)
+
+coll_potential = section(
+    0,
+    coll_U,
+    (u,t,mu) -> dcoll_U(u,t,mu) > 0
+)
+
+dQ_eq_mu = section(
+    0,
+    eq_dQ,
+    (u,t,mu) -> eq_ddQ(u,t,mu) > 0
+)
 
 return SortedDict([("Q_dQL4",Q_dQL4),
     ("Q_dQL4_e1", Q_dQL4_e1),
@@ -327,5 +458,9 @@ return SortedDict([("Q_dQL4",Q_dQL4),
     ("q1r_gtdq1r",q1r_gtdq1r),
     ("q1r_ltdq1r",q1r_ltdq1r),
     ("dr_gtdθ_L4",dr_gtdθ_L4),
-    ("dr_ltdθ_L4",dr_ltdθ_L4)])
+    ("dr_ltdθ_L4",dr_ltdθ_L4),
+    ("time",time),("torus_out",torus_out),
+    ("dq2_minus_dp1",dq2_minus_dp1),
+    ("coll_potential",coll_potential),
+    ("dQ_eq_mu",dQ_eq_mu)])
 

@@ -71,10 +71,9 @@ end
 function getCond(S)
     eq_cond = S.eq_cond
     cut = S.cut
-    function condition(out,U,_,integrator)
+    function condition(out,U,t,integrator)
 	c = U[5]
 	mu = integrator.p[1]
-	t = integrator.t
 	u = SVector{4}([U[1],U[2],U[3],U[4]])
 	if c == 0.0
 	    q1 = u[1]
