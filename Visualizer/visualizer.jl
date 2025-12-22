@@ -45,10 +45,10 @@ sys1_menu = Menu(fig,options=["none"], default="none")
 sys2_menu = Menu(fig,options=["none"], default="none")
 sec_menu = Menu(fig,options=["none"], default="none")
 
-axis_opt = ["q1","q2","p1","p2", "Q_L4_angle","P_L4_angle","Q_L4_mod","P_L4_mod","theta"]
-xaxis_menu = Menu(fig,options=zip(axis_opt,1:9)
+axis_opt = ["q1","q2","p1","p2", "Q_L4_angle","P_L4_angle","Q_L4_mod","P_L4_mod","theta","dq_angle","dq1","dq2"]
+xaxis_menu = Menu(fig,options=zip(axis_opt,1:12)
 		  , default = "q1")
-yaxis_menu = Menu(fig,options=zip(axis_opt,1:9)
+yaxis_menu = Menu(fig,options=zip(axis_opt,1:12)
 		  , default = "q2")
 sec1_check = Toggle(fig,active = false)
 sec1_input = Textbox(fig,placeholder="E",validator = Int64)
@@ -59,28 +59,33 @@ input_sec = inputGrid_sec[1,1:4] = [mu_menu,sys1_menu, sys2_menu, sec_menu]
 input_axis = inputGrid_axis[1,1:6] = [xaxis_menu,yaxis_menu,
     sec1_check,sec1_input,sec2_check,sec2_input]
 
+struct PointData
+    angle::Float64
+    time::Float64
+end
+
 pointsE = Observable(Vector{Float64}[])
-anglesE = Float64[] #TODO: if more info needed. transform into data
+dataE = PointData[]
 pointsE_plt = lift(pointsE) do P
-    points::Vector{Point2f} = [Point2f(project(u,a,xaxis),project(u,a,yaxis)) for (u,a) in zip(P,anglesE)]
+    points::Vector{Point2f} = [Point2f(project(u,a,xaxis),project(u,a,yaxis)) for (u,a) in zip(P,dataE)]
     return points
 end
-anglesI = Float64[]
+dataI = PointData[]
 pointsI = Observable(Vector{Float64}[])
 pointsI_plt = lift(pointsI) do P
-    points::Vector{Point2f} = [Point2f(project(u,a,xaxis),project(u,a,yaxis)) for (u,a) in zip(P,anglesI)]
+    points::Vector{Point2f} = [Point2f(project(u,a,xaxis),project(u,a,yaxis)) for (u,a) in zip(P,dataI)]
     return points
 end
 
 scatter!(ax,pointsE_plt,color="blue",markersize = 5,
 	 inspector_label = (self,i,pos) -> begin
-	    global last_hover = anglesE[i]
-	    "θ = "*string(anglesE[i])
+	    global last_hover = dataE[i].angle
+	    "θ = "*string(dataE[i].angle)*"\n t="*string(dataE[i].time)
 	 end)
 scatter!(ax,pointsI_plt,color="red",markersize = 5,
 	 inspector_label = (self,i,pos) -> begin
-	    global last_hover = anglesI[i]
-	    "θ = "*string(anglesI[i])
+	    global last_hover = dataI[i].angle
+	    "θ = "*string(dataI[i].angle)*"\n t="*string(dataI[i].time)
 	 end)
 
 
@@ -148,7 +153,7 @@ end
 function redraw()
     if section1_path != "none"
 	global cur_section = sec1_check.active[] ? sec1 : 0
-	update_points!(pointsE,anglesE,section1_path)
+	update_points!(pointsE,dataE,section1_path)
 	notify(pointsE)
     else
 	empty!(pointsE[])
@@ -157,7 +162,7 @@ function redraw()
 
     if section2_path != "none"
 	global cur_section = sec2_check.active[] ? sec2 : 0
-	update_points!(pointsI,anglesI,section2_path)
+	update_points!(pointsI,dataI,section2_path)
 	notify(pointsI)
     else
 	empty!(pointsI[])
@@ -186,6 +191,14 @@ function project(u,theta,axis)
 	return len
     elseif axis == 9
 	return theta
+    elseif axis == 10
+	dq1 = u[3]+u[2]
+	dq2 = u[4]-u[1]
+	return atan(dq2,dq1)
+    elseif axis == 11
+	return u[3]+u[2]
+    elseif axis == 12
+	return u[4]-u[1]
     end
     return 0.0
 end
@@ -203,7 +216,7 @@ function update_points!(points,angles,path)
 	for (uStr,t,theta) in data
 	    u = parse.(Float64, split(chop(uStr,head=1,tail=1),','))
 	    push!(points.val,u)
-	    push!(angles,theta)
+	    push!(angles,PointData(rad2deg(theta),t))
 	end
     end
 end

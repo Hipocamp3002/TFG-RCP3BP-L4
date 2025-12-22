@@ -365,6 +365,27 @@ dq2_ltdq1 = section(
     (u,t,mu) -> eq_dq1(u,t,mu) < 0.0
 )
 
+dp1_gtdp2 = section(
+    0.0,
+    eq_dp1,
+    (u,t,mu) -> eq_dp2(u,t,mu) > 0.0
+)
+dp1_ltdp2 = section(
+    0.0,
+    eq_dp1,
+    (u,t,mu) -> eq_dp2(u,t,mu) < 0.0
+)
+dp2_gtdp1 = section(
+    0.0,
+    eq_dp2,
+    (u,t,mu) -> eq_dp1(u,t,mu) > 0.0
+)
+dp2_ltdp1 = section(
+    0.0,
+    eq_dp2,
+    (u,t,mu) -> eq_dp1(u,t,mu) < 0.0
+)
+
 dr_gtdθ = section(
     0.0,
     eq_dr,
@@ -451,6 +472,10 @@ return SortedDict([("Q_dQL4",Q_dQL4),
     ("dq1_ltdq2",dq1_ltdq2),
     ("dq2_gtdq1",dq2_gtdq1),
     ("dq2_ltdq1",dq2_ltdq1),
+    ("dp1_gtdp2",dp1_gtdp2),
+    ("dp1_ltdp2",dp1_ltdp2),
+    ("dp2_gtdp1",dp2_gtdp1),
+    ("dp2_ltdp1",dp2_ltdp1),
     ("dr_gtdθ",dr_gtdθ),
     ("dr_ltdθ",dr_ltdθ),
     ("dθ_gtdr",dθ_gtdr),

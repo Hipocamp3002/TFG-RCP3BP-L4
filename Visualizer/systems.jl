@@ -74,7 +74,7 @@ function sistema_L4(mu::Float64; ini_error::Float64=1e-10, num_cicles::Int=1)
 
     curr_abs_error = 10 #big num
     while(curr_abs_error > ini_error)
-	eps = eps/10.0
+	eps = eps/2.0
 	C0 = cos(π/4)*eps
 	C1 = sin(π/4)*eps
 
@@ -84,12 +84,11 @@ function sistema_L4(mu::Float64; ini_error::Float64=1e-10, num_cicles::Int=1)
 	tspan = (0.0,tf)
 	u0 = SVector{4,Float64}(pos_ini)
 	prob = ODEProblem(orbit,u0,tspan,(mu))
-	sol = solve(prob,Feagin14(),dtmax=0.1)
+	sol = solve(prob,Vern9(),abstol = 1e-14,reltol = 1e-14)
 	final_int = sol.u[end]
 
 	curr_abs_error = norm(final_lin-final_int)
     end
-
     return Sistema(L4,Evecs,Ivecs,eps)
 end
 

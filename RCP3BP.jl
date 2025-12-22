@@ -112,7 +112,8 @@ struct Sistem
 	Ivecs = real([veps[1]+veps[2], (veps[1]-veps[2])*im])
 	Evecs = real([veps[3]+veps[4], (veps[3]-veps[4])*im])
 
-	Ivecs = Ivecs./norm.(Ivecs)
+	#Ivecs = Ivecs./norm.(Ivecs)
+    Ivecs = [v/norm(v[1:2]) for v in Ivecs]
 	Evecs = Evecs./norm.(Evecs)
 
 	a = real(vaps[1])

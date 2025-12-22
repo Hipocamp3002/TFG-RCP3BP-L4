@@ -93,13 +93,13 @@ function getCond(S)
 	    u2 = u[2]
 	    out[2] = (u1^2 + u2^2)^2 - 0.01
 	    
-	    u = uU2qp(u) + [1-mu,0,0,1-mu]
-	    out[3] = eq_cond(u,t,mu) - cut
+	    un = uU2qp(u) + [1-mu,0,0,1-mu]
+	    out[3] = eq_cond(un,t,mu) - cut
 	end
     end
 end
 
-function getAffect(S,dir::orbit_type)
+function getAffect(S,dir::orbit_type,max_inter::Int64)
     lt = dir == I ? (<) : (>)
     gt = dir == I ? (>) : (<)
     dir_cond = S.dir_cond
@@ -142,16 +142,19 @@ function getAffect(S,dir::orbit_type)
 		end
 	    end
 	elseif idx == 3
-	    u = sol2pos(U,mu)
-	    if dir_cond(u,t,mu)
+	    un = sol2pos(U,mu)
+	    if dir_cond(un,t,mu)
 		savevalues!(integrator, true)
 	    end
 	    u_modified!(integrator,false)
+	    if max_inter != -1 && length(integrator.sol) >= max_inter
+		terminate!(integrator)
+	    end
 	end
     end
 end
 
-cbVect(S,dir) = VectorContinuousCallback(getCond(S),getAffect(S,dir),3,
+cbVect(S,dir,max_inter) = VectorContinuousCallback(getCond(S),getAffect(S,dir,max_inter),3,
 				 save_positions = (false,false))
 
 function sol2pos(U,mu)
@@ -166,7 +169,6 @@ function sol2pos(U,mu)
 end
 
 
-#TODO: Implementar max intersections
 function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits::Int, mu::Float64, 
 		       type::orbit_type = I, calc_p = calc_parameters((0.0,100),-1);
 		       override = false)
@@ -219,7 +221,7 @@ function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits
 
     range = collect(LinRange(0.0,2pi,num_orbits))
 
-    cb = cbVect(S,type)
+    cb = cbVect(S,type,calc_p.max_intersections)
     vecs = type == I ? sis.Ivecs : sis.Evecs
     
     H0 = hamiltonian(sis.center,mu)
@@ -229,7 +231,6 @@ function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits
 	u0sa = SVector{5,Float64}([u0;0])
 	prob = ODEProblem(type == I ? orbitWithColl : orbitWithCollBack,
 		   u0sa,calc_p.tspan,[mu,H0])
-	global min_coll = 0
 	sol = solve(prob,Vern9(),
 	    	abstol = 1e-14,reltol = 1e-14,
 		callback = cb,
@@ -240,6 +241,7 @@ function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits
 	     )
 	path = sol2pos.(sol.u,mu)
 	
+
 	if length(sol.u) > length(data)
 	    for test in length(data):length(sol)
 		push!(data,[])
