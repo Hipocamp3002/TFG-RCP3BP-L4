@@ -223,7 +223,7 @@ function getAffect(dir::orbit_type)
     end
 end
 
-cbVect(dir) = VectorContinuousCallback(getCond(),getAffect(dir),2)
+cbVect(dir) = VectorContinuousCallback(getCond(),getAffect(dir),2,save_positions=(false,false))
 
 function sol2pos(U,mu)
     u = SVector{4}([U[1],U[2],U[3],U[4]])
@@ -255,15 +255,15 @@ function calc_orbit()
     vecs = dir ? s.Evecs : s.Ivecs
     u0 = s.center + s.eps*(cos(angle)*vecs[1] + sin(angle)*vecs[2])
     H0 = hamiltonian(s.center,mu)
-    u0sa = SVector{4,Float64}(u0)
+    u0sa = SVector{5,Float64}([u0;0])
     
     cb = cbVect(dir ? E : I)
 
     prob = ODEProblem(dir ? orbitWithCollBack : orbitWithColl,
-		      SVector{5}([u0sa;0]),(0.0,time),[mu,H0])
+		      u0sa,(0.0,time),[mu,H0])
 	sol = solve(prob,Vern9(),
 	    	abstol = 1e-14,reltol = 1e-14,
-		dense = false,
+		dense = true,
 		callback = cb,
 	    	#isoutofdomain = unstable_f(H0,1e-10)
 	     )

@@ -1,5 +1,6 @@
 using JLD2
 using CSV
+using ProgressBars
 
 systems = include("systems.jl")
 sections = include("sections.jl")
@@ -171,7 +172,7 @@ end
 
 function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits::Int, mu::Float64, 
 		       type::orbit_type = I, calc_p = calc_parameters((0.0,100),-1);
-		       override = false)
+		       override = false, ignore_override = false, new_system = false)
     #get key if integer
     skey::String = ""
     if (section isa Int)
@@ -189,8 +190,13 @@ function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits
     
     #system_exists
     sys_dir = mu_dir*"/"*system_key
-    if !isdir(sys_dir)
+    if  !isdir(sys_dir)
 	mkdir(sys_dir)
+	sis = systems[system_key](mu)
+	save_object(sys_dir*"/params.jld2",sis)
+    elseif new_system
+
+	rm(sys_dir*"/params.jld2")
 	sis = systems[system_key](mu)
 	save_object(sys_dir*"/params.jld2",sis)
     else
@@ -210,6 +216,8 @@ function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits
     elseif override
 	rm(type_dir,recursive=true)
 	mkdir(type_dir)
+    elseif ignore_override
+	return
     else
 	error("Orbit already exists, set override to true to override")
     end
@@ -217,7 +225,7 @@ function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits
     #calculate
     data = []
     #push!(data,new_line(num_orbits))
-    push!(data,[])
+    #push!(data,[])
 
     range = collect(LinRange(0.0,2pi,num_orbits))
 
@@ -259,6 +267,17 @@ function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits
     for (i,row) in enumerate(data)
 	path = type_dir*"/"*string(i)*".csv"
 	CSV.write(path,row)
+    end
+end
+
+function gen_orbits(system_key::String,section::Union{Int,String},
+		    num_orbits::Int, num_mu::Int, type::orbit_type = I, 
+		    calc_p = calc_parameters((0.0,300),8);
+		    override = false, mu_range = (0.05,0.5))
+    
+    Threads.@threads for mu in ProgressBar(collect(LinRange(mu_range[1],mu_range[2],num_mu)))
+	uniformOrbits(system_key,section,num_orbits,mu,type,calc_p,
+	       override = override, ignore_override = true)
     end
 end
 

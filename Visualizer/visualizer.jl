@@ -31,7 +31,7 @@ curr_mu = 0.0
 
 fig = Figure()
 
-ax = Axis(fig[2,1], aspect = AxisAspect(1), autolimitaspect = 1)
+ax = Axis(fig[2,1], autolimitaspect = 1)
 fig[1,1] = inputGrid_sec = GridLayout(tellwidth=false)
 fig[3,1] = inputGrid_axis = GridLayout(tellwidth=false)
 
@@ -77,12 +77,12 @@ pointsI_plt = lift(pointsI) do P
     return points
 end
 
-scatter!(ax,pointsE_plt,color="blue",markersize = 5,
+scatter!(ax,pointsE_plt,color="blue",markersize = 4,
 	 inspector_label = (self,i,pos) -> begin
 	    global last_hover = dataE[i].angle
 	    "θ = "*string(dataE[i].angle)*"\n t="*string(dataE[i].time)
 	 end)
-scatter!(ax,pointsI_plt,color="red",markersize = 5,
+scatter!(ax,pointsI_plt,color="red",markersize = 4,
 	 inspector_label = (self,i,pos) -> begin
 	    global last_hover = dataI[i].angle
 	    "θ = "*string(dataI[i].angle)*"\n t="*string(dataI[i].time)

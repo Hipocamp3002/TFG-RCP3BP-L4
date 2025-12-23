@@ -5,6 +5,9 @@ using StaticArrays
 
 mI = SA_F64[0 1 1 0; -1 0 0 1; 0 0 0 1; 0 0 -1 0]
 
+routh = 0.5*(1-sqrt(69)/9)
+routh_aprox = 0.0385208965045514
+
 function orbit(u,p,t)
     mu = p
     nu = 1-mu
