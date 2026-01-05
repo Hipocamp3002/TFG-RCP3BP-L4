@@ -1,5 +1,6 @@
 using JLD2
 using CSV
+using GZip
 using ProgressBars
 
 systems = include("systems.jl")
@@ -247,8 +248,10 @@ function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits
 		save_end = false
 	    	#isoutofdomain = unstable_f(H0,1e-10)
 	     )
+	if !SciMLBase.successful_retcode(sol)
+	    @show mu,theta
+	end
 	path = sol2pos.(sol.u,mu)
-	
 
 	if length(sol.u) > length(data)
 	    for test in length(data):length(sol)
@@ -263,13 +266,22 @@ function uniformOrbits(system_key::String,section::Union{Int,String}, num_orbits
 	end
     end
 
+    #TODO:store while calculing
+    
     #save data
     for (i,row) in enumerate(data)
-	path = type_dir*"/"*string(i)*".csv"
-	CSV.write(path,row)
+	path = type_dir*"/"*string(i)
+	touch(path)
+	GZip.open(path,"w") do f
+	    for a in row
+		write(f,a.u)
+	    end
+	end
     end
 end
 
+
+#TODO: Imprimir orbita que falli
 function gen_orbits(system_key::String,section::Union{Int,String},
 		    num_orbits::Int, num_mu::Int, type::orbit_type = I, 
 		    calc_p = calc_parameters((0.0,300),8);

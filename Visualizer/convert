@@ -1,0 +1,50 @@
+#!/bin/julia
+using CSV
+using GZip
+using ProgressBars
+
+file_paths = []
+for (path,dirs,files) in walkdir("data")
+    for file in files
+       if splitext(file)[end] == ".csv"
+           push!(file_paths, (path,file))
+       end
+    end
+end
+
+Threads.@threads for (path,file) in ProgressBar(file_paths)
+    sec = file[1:end-4]
+    data = CSV.File(path*"/"*file)
+    new_path = path*"/"*sec
+    touch(new_path)
+    p = []
+    GZip.open(new_path,"w") do f
+        for (uStr,_,_) in data
+            u = parse.(Float64,split(uStr[2:end-1],","))
+            push!(p,u)
+            write(f,u)
+        end
+    end
+
+    #check
+    failed = false
+    GZip.open(new_path,"r") do f
+        y = Vector{Float64}(undef,4)
+        i = 1
+        while !eof(f)
+            read!(f,y)
+            if y != p[i]
+                failed = true
+                println("Failed at "*new_path)
+                break
+            end
+            i +=1
+        end
+    end
+
+    if failed
+        rm(new_path)
+    else
+        rm(path*"/"*file)
+    end
+end
