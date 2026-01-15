@@ -15,7 +15,7 @@ data_button = Button(data_grid[1,1],label="directori de dades")
 data_label = Label(data_grid[1,2],"./data")
 Box(data_grid[1,3],visible = false)
 axq = Axis(lg[2,1],autolimitaspect = 1, title="Posició (q)")
-axp = Axis(lg[3,1],autolimitaspect=1, title="Impuls (p)")
+axp = Axis(lg[3,1],autolimitaspect=1, title="Moment (p)")
 mu_sl_grid = lg[4,1] = GridLayout()
 mu_label = Label(mu_sl_grid[1,1],"0.25",width=50)
 mu_slider = Slider(mu_sl_grid[1,2], range = 0.0386:0.0001:0.5,startvalue = 0.25)
@@ -206,6 +206,10 @@ function find_mu()
     empty!(E_mu_list)
     empty!(I_mu_list)
 
+    if !isdir(data)
+	return
+    end
+
     sec = sec_menu.selection[]
     Eori = oriE_menu.selection[]
     Iori = oriI_menu.selection[]
@@ -394,4 +398,4 @@ end
 
 #init functions
 reload()
-fig
+display(fig) |> wait

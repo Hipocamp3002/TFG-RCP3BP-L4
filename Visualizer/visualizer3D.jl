@@ -1,313 +1,197 @@
-using DataStructures
 using GLMakie
-using JLD2
-using CSV
+include("systems.jl")
+include("LeviCivita.jl")
 
-#Plot with selectors
-#   - mu value
-#   - 2 systems
-#   - 1 section
-#   - Axis selector
+@enum orbit_type E I
 
+#Layout
+fig  = Figure()
+ing = fig[1,1] = GridLayout(tellwidth=false)
+mu_input = Textbox(ing[1,1], validator=Float64, stored_string="0.5")
+time_input = Textbox(ing[1,2],validator=Float64, stored_string="60")
+num_input = Textbox(ing[1,3],validator=Int64, stored_string="100")
 
+ax = Axis3(fig[2,1],perspectiveness = 0.8,
+	   aspect = :data,
+	   #viewmode = :strech
+	   )
 
-system1 = "none"
-system2 = "none"
+#data
+mu = 0.5
+time = 60
+num_points = 100
 
-section1_path = "none"
-section2_path = "none"
+pointsE = Observable(Point3f[])
+pointsI = Observable(Point3f[])
 
-sec1 = 0
-sec2 = 0
-cur_section = 0
+#input
 
-xaxis=1
-yaxis=2
-
-last_hover=0.0
-
-curr_mu = 0.0
-
-
-fig = Figure()
-
-ax = Axis3(fig[2,1])
-fig[1,1] = inputGrid_sec = GridLayout(tellwidth=false)
-fig[3,1] = inputGrid_axis = GridLayout(tellwidth=false)
-
-mu_selection = []
-for mu_dir in readdir("data")
-    push!(mu_selection,mu_dir)
+on(mu_input.stored_string) do v
+    global mu = clamp(parse(Float64,v),0.04,0.5)
+    recalc()
+end
+on(time_input.stored_string) do v
+    global time = max(parse(Float64,v),0)
+    recalc()
+end
+on(num_input.stored_string) do v
+    global num_points = max(parse(Int64,v),0)
+    recalc()
 end
 
-mu_menu = Menu(fig,options=mu_selection,default=nothing)
-sys1_menu = Menu(fig,options=["none"], default="none")
-sys2_menu = Menu(fig,options=["none"], default="none")
-sec_menu = Menu(fig,options=["none"], default="none")
+#calc
 
-axis_opt = ["q1","q2","p1","p2", "Q_L4_angle","P_L4_angle","Q_L4_mod","P_L4_mod"]
-xaxis_menu = Menu(fig,options=zip(axis_opt,1:8)
-		  , default = "q1")
-yaxis_menu = Menu(fig,options=zip(axis_opt,1:8)
-		  , default = "q2")
-sec1_check = Toggle(fig,active = false)
-sec1_input = Textbox(fig,placeholder="E",validator = Int64)
-sec2_check = Toggle(fig,active = false)
-sec2_input = Textbox(fig,placeholder="I",validator = Int64)
-
-input_sec = inputGrid_sec[1,1:4] = [mu_menu,sys1_menu, sys2_menu, sec_menu]
-input_axis = inputGrid_axis[1,1:6] = [xaxis_menu,yaxis_menu,
-    sec1_check,sec1_input,sec2_check,sec2_input]
-
-
-pointsE = Observable(Vector{Float64}[])
-anglesE = Float64[]
-pointsE_plt = lift(pointsE) do P
-    points::Vector{Point3f} = [Point3f(project(u,xaxis),project(u,yaxis),project(u,8)) for u in P]
-    return points
-end
-anglesI = Float64[]
-pointsI = Observable(Vector{Float64}[])
-pointsI_plt = lift(pointsI) do P
-    points::Vector{Point3f} = [Point3f(project(u,xaxis),project(u,yaxis),project(u,8)) for u in P]
-    return points
-end
-
-scatter!(ax,pointsE_plt,color="blue",markersize = 5,
-	 inspector_label = (self,i,pos) -> begin
-	    global last_hover = anglesE[i]
-	    "θ = "*string(anglesE[i])
-	 end)
-scatter!(ax,pointsI_plt,color="red",markersize = 5,
-	 inspector_label = (self,i,pos) -> begin
-	    global last_hover = anglesI[i]
-	    "θ = "*string(anglesI[i])
-	 end)
-
-
-
-#TODO: fix doble execution
-function updateSectionsMenu()
-    index = sec_menu.i_selected.val
-    if index != 0
-	id = sec_menu.options.val[index]
+function orbitWithColl(U,p,t)::SVector{5,Float64}
+    mu,E = p
+    u = SVector{4}([U[1],U[2],U[3],U[4]])
+    coll = U[5]
+    if coll == 2.0
+	res = LCorbitP2(u,(mu,E),t) 
+	return [res ;0.0]
+    elseif coll == 1.0
+	res = LCorbitP1(u,(mu,E),t)
+	return [res ;0.0]
     else
-	id = "none"
+	res = orbit(u,mu,t)
+	return [res ; 0.0]
     end
+    SA[0.0,0.0,0.0,0.0,0.0]
+end
 
-    if system1 == "none" && system2 == "none"
-	sec_menu.options = ["none"]
-    elseif system1 == "none"
-	sec2_opts = ["none"]
-	for sec in readdir(system2)
-	    sec_dir = system2*"/"*sec*"/I"
-	    if isdir(sec_dir)
-		push!(sec2_opts,sec)
+function orbitWithCollBack(U,p,t)::SVector{5,Float64}
+    mu,E = p
+    u = SVector{4}([U[1],U[2],U[3],U[4]])
+    coll = U[5]
+    if coll == 2.0
+	res = LCorbitBackP2(u,(mu,E),t) 
+	return [res ;0.0]
+    elseif coll == 1.0
+	res = LCorbitBackP1(u,(mu,E),t)
+	return [res ;0.0]
+    else
+	res = orbitBack(u,mu,t)
+	return [res ; 0.0]
+    end
+    SA[0.0,0.0,0.0,0.0,0.0]
+end
+
+function getCond()
+    function condition(out,U,t,integrator)
+	c = U[5]
+	mu = integrator.p[1]
+	u = SVector{4}([U[1],U[2],U[3],U[4]])
+	if c == 0.0
+	    q1 = u[1]
+	    q2 = u[2]
+	    out[1] = (q1+mu)^2 + q2^2 - 0.01
+	    out[2] = (q1+mu-1)^2 + q2^2 - 0.01
+	elseif c == 1.0
+	    u1 = u[1]
+	    u2 = u[2]
+	    out[1] = (u1^2 + u2^2)^2 - 0.01
+	elseif c == 2.0
+	    u1 = u[1]
+	    u2 = u[2]
+	    out[2] = (u1^2 + u2^2)^2 - 0.01
+	end
+    end
+end
+
+function getAffect(dir::orbit_type)
+    lt = dir == I ? (<) : (>)
+    gt = dir == I ? (>) : (<)
+    function affect!(integrator,idx)
+	U = integrator.u
+	c = U[5]
+	mu = integrator.p[1]
+	t = integrator.t
+	u = SVector{4}([U[1],U[2],U[3],U[4]])
+	if idx == 1
+	    if c == 0
+		q1 = u[1] + mu
+		q2 = u[2]
+		p1 = u[3]
+		p2 = u[4] + mu
+		if lt(q1*(p1+q2) + q2*(p2-q1), 0)
+		   integrator.u = SVector{5}([qp2uU(SA[q1,q2,p1,p2]);1])
+		end
+	    elseif c == 1
+		u1,u2,U1,U2 = u
+		if gt((U1*u1 + U2*u2)/2 , 0)
+		    u_new = uU2qp(u) + [-mu,0.0,0.0,-mu]
+		    integrator.u = SVector{5}([u_new ; 0])
+		end
+	    end
+	elseif idx == 2
+	    if c == 0
+		q1 = u[1] - 1 + mu
+		q2 = u[2]
+		p1 = u[3]
+		p2 = u[4] - 1 + mu
+		if lt(q1*(p1+q2) + q2*(p2-q1), 0)
+		    integrator.u = SVector{5}([qp2uU(SA[q1,q2,p1,p2]);2])
+		end
+	    elseif c == 2
+		u1,u2,U1,U2 = u
+		if gt((U1*u1 + U2*u2)/2 , 0)
+		    u_new = uU2qp(u) + [1-mu,0,0,1-mu]
+		    integrator.u = SVector{5}([u_new ; 0])
+		end
 	    end
 	end
-	sec_menu.options = sec2_opts
-    elseif system2 == "none"
-	sec1_opts = ["none"]
-	for sec in readdir(system1)
-	    sec_dir = system1*"/"*sec*"/E"
-	    if isdir(sec_dir)
-		push!(sec1_opts,sec)
-	    end
-	end
-	sec_menu.options = sec1_opts
-    else
-	sec1_opts = ["none"]
-	for sec in readdir(system1)
-	    sec_dir = system1*"/"*sec*"/E"
-	    if isdir(sec_dir)
-		push!(sec1_opts,sec)
-	    end
-	end
-	sec_menu.options = sec1_opts
-
-	sec2_opts = ["none"]
-	for sec in readdir(system2)
-	    sec_dir = system2*"/"*sec*"/I"
-	    if isdir(sec_dir)
-		push!(sec2_opts,sec)
-	    end
-	end
-	
-	sec_menu.options = intersect(sec1_opts,sec2_opts)
-    end
-
-    for (n,i) in enumerate(sec_menu.options.val)
-	if id == i
-	    sec_menu.i_selected = n
-	    notify(sec_menu.selection)
-	    break
-	end
     end
 end
 
-#drawing
-function redraw()
-    if section1_path != "none"
-	global cur_section = sec1_check.active[] ? sec1 : 0
-	update_points!(pointsE,anglesE,section1_path)
-	notify(pointsE)
-    else
-	empty!(pointsE[])
-	notify(pointsE)
-    end
+cbVect(dir) = VectorContinuousCallback(getCond(),getAffect(dir),2,save_positions=(false,false))
 
-    if section2_path != "none"
-	global cur_section = sec2_check.active[] ? sec2 : 0
-	update_points!(pointsI,anglesI,section2_path)
-	notify(pointsI)
-    else
-	empty!(pointsI[])
-	notify(pointsI)
+function sol2pos(U,mu)
+    u = SVector{4}([U[1],U[2],U[3],U[4]])
+    c = U[5]
+    if c == 1
+	return uU2qp(u) - [mu,0,0,mu]
+    elseif c== 2
+	return uU2qp(u) + [1-mu,0,0,1-mu]
     end
-end
-
-function project(u,axis)
-    if axis <= 4
-	return u[axis]
-    elseif axis == 5
-	angle = atan(u[1]-0.5+curr_mu, u[2]-sqrt(3)/2)
-	return angle
-    elseif axis == 6
-	angle = atan(u[3]+sqrt(3)/2, u[4]-0.5+curr_mu)
-	return angle
-    elseif axis == 7
-	x = u[1]-0.5+curr_mu
-	y = u[2]-sqrt(3)/2
-	len = sqrt(x*x + y*y)
-	return len
-    elseif axis == 8
-	x = u[3]-0.5+curr_mu
-	y = u[4]+sqrt(3)/2
-	len = sqrt(x*x + y*y)
-	return len
-    end
-    return 0.0
-end
-
-function update_points!(points,angles,path)
-    empty!(points.val)
-    empty!(angles)
-    if path == "none" return end
-    for sec_file in readdir(path)
-	section = parse(Int64,split(sec_file,".")[1])
-	if cur_section != 0 && cur_section != section
-	    continue
-	end
-	data = CSV.File(path*"/"*sec_file)
-	for (uStr,t,theta) in data
-	    u = parse.(Float64, split(chop(uStr,head=1,tail=1),','))
-	    push!(points.val,u)
-	    push!(angles,theta)
-	end
-    end
+    return u
 end
 
 
-#events
-on(mu_menu.selection) do s
-    if s == nothing return
-    else global curr_mu = parse(Float64,s)end
-    mu_dir = "data/"*s
-    systems_opt = [("none","none")]
-    for sys in readdir(mu_dir)
-	push!(systems_opt, (sys, mu_dir*"/"*sys))
-    end
+function recalc()
+    s = sistema_L4(mu)
+    for dir in [E,I]
+	points = dir == E ? pointsE : pointsI
+	empty!(points[])
+	vecs = dir == E ? s.Evecs : s.Ivecs
+	for angle in LinRange(0,2pi,num_points) |> collect
+	    u0 = s.center + s.eps*(cos(angle)*vecs[1] + sin(angle)*vecs[2])
+	    H0 = hamiltonian(s.center,mu)
+	    u0sa = SVector{5,Float64}([u0;0])
     
-    #get current id of selection
-    index = sys1_menu.i_selected.val
-    if index != 0
-	id1,_ = sys1_menu.options.val[index]
-    else
-	id1 = "none"
-    end
-    index = sys2_menu.i_selected.val
-    if index != 0
-	id2,_ = sys2_menu.options.val[index]
-    else
-	id2 = "none"
-    end
+	    cb = cbVect(dir)
 
-	
-    sys1_menu.options = systems_opt
-    for (n,(i,d)) in enumerate(systems_opt)
-	if id1 == i
-	    sys1_menu.i_selected = n
-	    break
+	    prob = ODEProblem(dir==E ? orbitWithCollBack : orbitWithColl,
+			    u0sa,(0.0,time),[mu,H0])
+	    sol = solve(prob,Vern9(),
+			abstol = 1e-14,reltol = 1e-14,
+			dense = true,
+			callback = cb)
+
+	    path = sol2pos.(sol.u,mu)
+	    #proj = [Point3f(u[1],u[2],atan(u[4]-u[1],u[3]+u[2])|>cos) for u in path]
+	    #proj = [Point3f(u[1],u[2],u[4]-u[1]/u[3]+u[2]) for u in path]
+	    proj = [begin
+		ang = atan(u[4]-u[1],u[3]+u[2])
+		Point3f(cos(ang)*u[1],sin(ang)*u[1],u[2])
+		end for u in path]
+	    append!(points[],proj)
 	end
-    end
-
-    sys2_menu.options = systems_opt
-    for (n,(i,d)) in enumerate(systems_opt)
-	if id2 == i
-	    sys2_menu.i_selected = n
-	    break
-	end
+	notify(points)
     end
 end
 
-on(sys1_menu.selection) do s
-    if s == nothing 
-	return
-    else
-	global system1 = s
-    end
-    updateSectionsMenu()
-end
-on(sys2_menu.selection) do s
-    if s == nothing 
-	return
-    else
-	global system2 = s
-    end
-    updateSectionsMenu()
-end
+#display
 
-on(sec_menu.selection) do s
-    if s==nothing || s == "none" return end
-    if system1 == "none"
-	global section1_path = "none"
-    else
-	global section1_path = system1*"/"*s*"/E"
-    end
-    if system2 == "none" 
-	global section2_path = "none"
-    else
-	global section2_path = system2*"/"*s*"/I"
-    end
-    redraw()
-end
-
-on(xaxis_menu.selection) do n
-    global xaxis = n
-    redraw()
-end
-on(yaxis_menu.selection) do n
-    global yaxis = n
-    redraw()
-end
-
-on(sec1_input.stored_string) do s
-    global sec1 = parse(Int64,s)
-    redraw()
-end
-on(sec2_input.stored_string) do s
-    global sec2 = parse(Int64,s)
-    redraw()
-end
-
-on(events(ax).mousebutton, priority = -1) do event
-    if event.button == Mouse.left && event.action == Mouse.press
-	plt,i = pick(ax)
-	if plt isa Scatter
-	    clipboard(string(last_hover))
-	end
-    end
-end
-
-DataInspector(ax)
-fig
+recalc()
+scatter!(ax,pointsE,color="blue",depthsorting=true,markersize=5)
+scatter!(ax,pointsI,color="red",depthsorting=true,markersize=5)
+display(fig) |> wait

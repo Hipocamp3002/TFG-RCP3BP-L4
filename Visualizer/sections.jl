@@ -300,7 +300,7 @@ function eq_ddQ(u,t,mu)
 end
 
 Q_dQL4 = section(
-    0.5,
+    sqrt(0.5),
     eq_Q,
     gt_dQ,
 )
@@ -313,13 +313,13 @@ Q_dQL4_e1 = section(
 
 
 P_dPL4 = section(
-    0.5,
+    sqrt(0.5),
     eq_P,
     gt_dP,
 )
 
 QP_dQPL4 = section(
-    0.5,
+    sqrt(0.5),
     eq_QP,
     gt_dQP,
 )
@@ -461,6 +461,22 @@ dQ_eq_mu = section(
     (u,t,mu) -> eq_ddQ(u,t,mu) > 0
 )
 
+q1_ltq2 = section(
+    0,
+    (u,_,_) -> u[1],
+    (u,_,_) -> u[2] < 0
+)
+q2_gtq1 = section(
+    0,
+    (u,_,_) -> u[2],
+    (u,_,_) -> u[1] > 0
+)
+q1L4_gtq2 = section(
+    0,
+    (u,_,mu) -> u[1]-(0.5-mu),
+    (u,_,_) -> u[2] > 0
+)
+
 return SortedDict([("Q_dQL4",Q_dQL4),
     ("Q_dQL4_e1", Q_dQL4_e1),
     ("P_dPL4",P_dPL4),
@@ -487,5 +503,8 @@ return SortedDict([("Q_dQL4",Q_dQL4),
     ("time",time),("torus_out",torus_out),
     ("dq2_minus_dp1",dq2_minus_dp1),
     ("coll_potential",coll_potential),
-    ("dQ_eq_mu",dQ_eq_mu)])
+    ("dQ_eq_mu",dQ_eq_mu),
+    ("q1_ltq2",q1_ltq2),
+    ("q2_gtq1",q2_gtq1),
+    ("q1L4_gtq2",q1L4_gtq2)])
 

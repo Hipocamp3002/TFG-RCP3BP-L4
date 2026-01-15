@@ -1,7 +1,7 @@
 using DataStructures
 using GLMakie
 using JLD2
-using CSV
+using GZip
 
 #Plot with selectors
 #   - mu value
@@ -35,10 +35,7 @@ ax = Axis(fig[2,1], autolimitaspect = 1)
 fig[1,1] = inputGrid_sec = GridLayout(tellwidth=false)
 fig[3,1] = inputGrid_axis = GridLayout(tellwidth=false)
 
-mu_selection = []
-for mu_dir in readdir("data")
-    push!(mu_selection,mu_dir)
-end
+mu_selection = string.(0.05:0.05:0.5)
 
 mu_menu = Menu(fig,options=mu_selection,default=nothing)
 sys1_menu = Menu(fig,options=["none"], default="none")
@@ -67,26 +64,28 @@ end
 pointsE = Observable(Vector{Float64}[])
 dataE = PointData[]
 pointsE_plt = lift(pointsE) do P
-    points::Vector{Point2f} = [Point2f(project(u,a,xaxis),project(u,a,yaxis)) for (u,a) in zip(P,dataE)]
+    points::Vector{Point2f} = [Point2f(project(u,xaxis),project(u,yaxis)) for u in P]
     return points
 end
 dataI = PointData[]
 pointsI = Observable(Vector{Float64}[])
 pointsI_plt = lift(pointsI) do P
-    points::Vector{Point2f} = [Point2f(project(u,a,xaxis),project(u,a,yaxis)) for (u,a) in zip(P,dataI)]
+    points::Vector{Point2f} = [Point2f(project(u,xaxis),project(u,yaxis)) for u in P]
     return points
 end
 
 scatter!(ax,pointsE_plt,color="blue",markersize = 4,
-	 inspector_label = (self,i,pos) -> begin
-	    global last_hover = dataE[i].angle
-	    "θ = "*string(dataE[i].angle)*"\n t="*string(dataE[i].time)
-	 end)
+	 #inspector_label = (self,i,pos) -> begin
+	 #   global last_hover = dataE[i].angle
+	 #   "θ = "*string(dataE[i].angle)*"\n t="*string(dataE[i].time)
+	 #end
+	 )
 scatter!(ax,pointsI_plt,color="red",markersize = 4,
-	 inspector_label = (self,i,pos) -> begin
-	    global last_hover = dataI[i].angle
-	    "θ = "*string(dataI[i].angle)*"\n t="*string(dataI[i].time)
-	 end)
+	 #inspector_label = (self,i,pos) -> begin
+	 #   global last_hover = dataI[i].angle
+	 #   "θ = "*string(dataI[i].angle)*"\n t="*string(dataI[i].time)
+	 #end
+	 )
 
 
 
@@ -170,7 +169,7 @@ function redraw()
     end
 end
 
-function project(u,theta,axis)
+function project(u,axis)
     if axis <= 4
 	return u[axis]
     elseif axis == 5
@@ -190,7 +189,7 @@ function project(u,theta,axis)
 	len = sqrt(x*x + y*y)
 	return len
     elseif axis == 9
-	return theta
+	return 0
     elseif axis == 10
 	dq1 = u[3]+u[2]
 	dq2 = u[4]-u[1]
@@ -205,18 +204,18 @@ end
 
 function update_points!(points,angles,path)
     empty!(points.val)
-    empty!(angles)
     if path == "none" return end
     for sec_file in readdir(path)
-	section = parse(Int64,split(sec_file,".")[1])
+	section = parse(Int64,sec_file)
 	if cur_section != 0 && cur_section != section
 	    continue
 	end
-	data = CSV.File(path*"/"*sec_file)
-	for (uStr,t,theta) in data
-	    u = parse.(Float64, split(chop(uStr,head=1,tail=1),','))
-	    push!(points.val,u)
-	    push!(angles,PointData(rad2deg(theta),t))
+	GZip.open(path*"/"*sec_file, "r") do f
+	    while !eof(f)
+		u = Vector{Float64}(undef,4)
+		read!(f,u)
+		push!(points[],u)
+	    end
 	end
     end
 end
